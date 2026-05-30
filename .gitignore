@@ -39,4 +39,3 @@ sqlc/*.go
 # Editor/IDE
 # .idea/
 # .vscode/
-frontend/

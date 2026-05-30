@@ -1,27 +1,49 @@
 version: '3.8'
 
 services:
-  app:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3001}:3001"
     environment:
-      - SERVER_PORT=3000
+      - SERVER_PORT=3001
       - SERVER_HOST=0.0.0.0
       - DATABASE_PATH=./database/payments.db
       - LOG_LEVEL=info
       - LOG_FORMAT=json
       - THREEDS_ENABLED=true
       - GO_VERSION=1.26.2
+      - VITE_API_URL=http://localhost:${BACKEND_PORT:-3001}
     volumes:
       - ./database:/app/database
       - ./api/migrations:/app/api/migrations
     networks:
       - payment-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/admin/dashboard"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/admin/dashboard"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    environment:
+      - VITE_API_URL=http://backend:3001
+      - VITE_WS_URL=ws://backend:3001
+    networks:
+      - payment-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -33,12 +55,12 @@ services:
       context: .
       dockerfile: Dockerfile.test
     environment:
-      - SERVER_URL=http://app:3000
+      - SERVER_URL=http://backend:3001
       - TEST_API_KEY=test_api_key_12345
     networks:
       - payment-network
     depends_on:
-      app:
+      backend:
         condition: service_healthy
     profiles:
       - test
