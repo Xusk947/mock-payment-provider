@@ -27,6 +27,16 @@ go.work.sum
 # env file
 .env
 
+# sqlc generated files
+sqlc/*.go
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+/database/*.db
+
 # Editor/IDE
 # .idea/
 # .vscode/
+frontend/
