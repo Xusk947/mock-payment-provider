@@ -11,6 +11,7 @@ import (
 	"github.com/xusk947/mock-payment-provider/internal/services"
 	"github.com/xusk947/mock-payment-provider/pkg/database"
 	"github.com/xusk947/mock-payment-provider/pkg/logger"
+	"os"
 	"go.uber.org/zap"
 )
 
@@ -146,7 +147,11 @@ func main() {
 	})
 
 	// Start server
-	addr := ":3000"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	addr := ":" + port
 	l.Info("Server starting", zap.String("address", addr))
 	if err := app.Listen(addr); err != nil {
 		l.Fatal("Failed to start server", zap.Error(err))

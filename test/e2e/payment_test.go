@@ -2,24 +2,26 @@ package e2e
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // PaymentE2ETest runs end-to-end tests for the payment flow
 type PaymentE2ETest struct {
-	container testcontainers.Container
-	baseURL   string
-	apiKey    string
+	cmd     *exec.Cmd
+	baseURL string
+	apiKey  string
 }
 
 type ChargeRequest struct {
@@ -48,35 +50,56 @@ type RefundRequest struct {
 }
 
 func setupTestEnvironment(t *testing.T) *PaymentE2ETest {
-	ctx := context.Background()
+	// Get project root (two levels up from test/e2e)
+	_, testFile, _, _ := runtime.Caller(0)
+	projectRoot := filepath.Join(filepath.Dir(testFile), "..", "..")
+	projectRoot, _ = filepath.Abs(projectRoot)
 
-	// Start the application container
-	req := testcontainers.ContainerRequest{
-		Image:        "mock-payment-provider:latest",
-		ExposedPorts: []string{"3000/tcp"},
-		WaitingFor: wait.ForHTTP("/admin/dashboard").
-			WithPort("3000/tcp").
-			WithStartupTimeout(30 * time.Second),
-	}
+	// Use a random free port
+	port := getFreePort(t)
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	require.NoError(t, err, "failed to start container")
+	// Build server binary
+	binaryPath := filepath.Join(os.TempDir(), "e2e-server")
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/server")
+	buildCmd.Dir = projectRoot
+	buildOutput, err := buildCmd.CombinedOutput()
+	require.NoError(t, err, "failed to build server: %s", buildOutput)
 
-	host, err := container.Host(ctx)
-	require.NoError(t, err, "failed to get container host")
+	// Create temp database dir
+	dbDir := filepath.Join(os.TempDir(), fmt.Sprintf("e2e-db-%d", time.Now().UnixNano()))
+	require.NoError(t, os.MkdirAll(dbDir, 0750))
 
-	port, err := container.MappedPort(ctx, "3000")
-	require.NoError(t, err, "failed to get container port")
+	// Run migrations
+	migrateCmd := exec.Command("go", "run", "github.com/pressly/goose/v3/cmd/goose@latest", "-dir", "api/migrations", "sqlite", filepath.Join(dbDir, "payments.db"), "up")
+	migrateCmd.Dir = projectRoot
+	migrateOutput, err := migrateCmd.CombinedOutput()
+	require.NoError(t, err, "failed to run migrations: %s", migrateOutput)
 
-	baseURL := fmt.Sprintf("http://%s:%s", host, port.Port())
+	// Start server
+	cmd := exec.Command(binaryPath)
+	cmd.Dir = projectRoot
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("DATABASE_PATH=%s", filepath.Join(dbDir, "payments.db")))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PORT=%s", port))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	require.NoError(t, cmd.Start(), "failed to start server")
+
+	// Wait for server to be ready
+	baseURL := fmt.Sprintf("http://localhost:%s", port)
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(baseURL + "/admin/dashboard")
+		if err != nil {
+			return false
+		}
+		resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 30*time.Second, 500*time.Millisecond, "server did not start")
 
 	return &PaymentE2ETest{
-		container: container,
-		baseURL:   baseURL,
-		apiKey:    "test_api_key_12345", // Using test API key from migrations
+		cmd:     cmd,
+		baseURL: baseURL,
+		apiKey:  "test_api_key_12345", // Using test API key from migrations
 	}
 }
 
@@ -86,7 +109,12 @@ func TestFullPaymentFlow_VisaCard_Success(t *testing.T) {
 	}
 
 	test := setupTestEnvironment(t)
-	defer test.container.Terminate(context.Background())
+	defer func() {
+		if test.cmd != nil && test.cmd.Process != nil {
+			test.cmd.Process.Kill()
+			test.cmd.Wait()
+		}
+	}()
 
 	// Test 1: Successful charge with Visa card
 	t.Run("VisaCard_SuccessfulCharge", func(t *testing.T) {
@@ -322,7 +350,12 @@ func TestAdminAPI(t *testing.T) {
 	}
 
 	test := setupTestEnvironment(t)
-	defer test.container.Terminate(context.Background())
+	defer func() {
+		if test.cmd != nil && test.cmd.Process != nil {
+			test.cmd.Process.Kill()
+			test.cmd.Wait()
+		}
+	}()
 
 	t.Run("Dashboard_Statistics", func(t *testing.T) {
 		resp := sendRequest(t, test.baseURL+"/admin/dashboard", http.MethodGet, nil)
@@ -373,7 +406,12 @@ func TestWebhookDelivery(t *testing.T) {
 	}
 
 	test := setupTestEnvironment(t)
-	defer test.container.Terminate(context.Background())
+	defer func() {
+		if test.cmd != nil && test.cmd.Process != nil {
+			test.cmd.Process.Kill()
+			test.cmd.Wait()
+		}
+	}()
 
 	t.Run("Webhook_SentAfterSuccessfulCharge", func(t *testing.T) {
 		req := ChargeRequest{
@@ -426,6 +464,13 @@ func sendCaptureRequest(t *testing.T, baseURL string, req CaptureRequest) *http.
 func sendRefundRequest(t *testing.T, baseURL string, req RefundRequest) *http.Response {
 	body, _ := json.Marshal(req)
 	return sendRequest(t, baseURL+"/api/v1/refunds", http.MethodPost, body)
+}
+
+func getFreePort(t *testing.T) string {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l.Close()
+	return fmt.Sprintf("%d", l.Addr().(*net.TCPAddr).Port)
 }
 
 func sendRequest(t *testing.T, url, method string, body []byte) *http.Response {
