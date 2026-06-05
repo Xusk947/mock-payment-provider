@@ -35,7 +35,9 @@ func Recovery(l *logger.Logger) fiber.Handler {
 					zap.String("path", c.Path()),
 					zap.Any("error", r),
 				)
-				c.Status(500).JSON(fiber.Map{"error": "Internal server error"})
+				if err := c.Status(500).JSON(fiber.Map{"error": "Internal server error"}); err != nil {
+					l.Error("Failed to send error response", zap.Error(err))
+				}
 			}
 		}()
 

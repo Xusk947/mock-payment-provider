@@ -68,7 +68,9 @@ func (s *WebhookService) SendWebhook(ctx context.Context, merchantID int, eventT
 // shouldSendEvent checks if the webhook should be sent for this event type
 func (s *WebhookService) shouldSendEvent(eventTypes string, eventType string) bool {
 	var types []string
-	json.Unmarshal([]byte(eventTypes), &types)
+	if err := json.Unmarshal([]byte(eventTypes), &types); err != nil {
+		return false
+	}
 
 	for _, t := range types {
 		if t == eventType || t == "*" {

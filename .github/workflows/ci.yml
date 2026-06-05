@@ -136,10 +136,28 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: test
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+        go install github.com/swaggo/swag/cmd/swag@latest
+
+    - name: Generate sqlc code
+      run: |
+        cd sqlc && ~/go/bin/sqlc generate
+
+    - name: Generate swagger docs
+      run: ~/go/bin/swag init -g cmd/server/main.go --output cmd/server/docs
 
     - name: Run Gosec Security Scanner
       uses: securego/gosec@master

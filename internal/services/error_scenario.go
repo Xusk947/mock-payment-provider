@@ -2,8 +2,8 @@ package services
 
 import (
 	"context"
-	"math/rand"
-	"time"
+	"crypto/rand"
+	"math/big"
 
 	db "github.com/xusk947/mock-payment-provider/sqlc"
 )
@@ -35,16 +35,14 @@ func (s *ErrorScenarioService) GetActiveScenario(ctx context.Context) (*db.Error
 		return nil, nil
 	}
 
-	// Random selection based on probability
-	rand.Seed(time.Now().UnixNano())
-
 	// Check each scenario based on its probability
 	for _, scenario := range scenarios {
 		probability := 0.0
 		if scenario.Probability.Valid {
 			probability = scenario.Probability.Float64
 		}
-		if rand.Float64()*100 < probability {
+		val, _ := rand.Int(rand.Reader, big.NewInt(10000))
+		if float64(val.Int64())/100.0 < probability {
 			return &scenario, nil
 		}
 	}
