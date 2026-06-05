@@ -109,14 +109,16 @@ func (s *TransactionService) Charge(ctx context.Context, req *models.ChargeReque
 		AmountCaptured:       sql.NullFloat64{Float64: req.Amount, Valid: true},
 	}
 
-	// Apply error scenario
-	scenario, err := s.errorService.GetActiveScenario(ctx)
-	if err == nil && scenario != nil {
-		scenario, err = s.errorService.ApplyScenario(ctx, scenario, cardResponseScenario)
+	// Apply error scenario only for non-success cards
+	if cardResponseScenario != models.ScenarioSuccess {
+		scenario, err := s.errorService.GetActiveScenario(ctx)
 		if err == nil && scenario != nil {
-			tx.Status = string(models.StatusFailed)
-			tx.ErrorCode = sql.NullString{String: scenario.ErrorCode, Valid: true}
-			tx.ErrorMessage = sql.NullString{String: scenario.ErrorMessage, Valid: true}
+			scenario, err = s.errorService.ApplyScenario(ctx, scenario, cardResponseScenario)
+			if err == nil && scenario != nil {
+				tx.Status = string(models.StatusFailed)
+				tx.ErrorCode = sql.NullString{String: scenario.ErrorCode, Valid: true}
+				tx.ErrorMessage = sql.NullString{String: scenario.ErrorMessage, Valid: true}
+			}
 		}
 	} else {
 		tx.Status = string(models.StatusCompleted)
@@ -242,10 +244,10 @@ func (s *TransactionService) PayInvoice(ctx context.Context, id int, req *models
 	if tx.MerchantID.Valid {
 		if tx.Status == "completed" {
 			// #nosec G118 -- async webhook, intentionally uses background context
-		go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.completed", tx)
+			go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.completed", tx)
 		} else if tx.Status == "failed" {
 			// #nosec G118 -- async webhook, intentionally uses background context
-		go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.failed", tx)
+			go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.failed", tx)
 		}
 	}
 
@@ -287,7 +289,7 @@ func (s *TransactionService) Hold(ctx context.Context, req *models.ChargeRequest
 	}
 
 	// #nosec G118 -- async webhook, intentionally uses background context
-		go s.webhookService.SendWebhook(context.Background(), int(merchant.ID), "hold.created", tx)
+	go s.webhookService.SendWebhook(context.Background(), int(merchant.ID), "hold.created", tx)
 
 	return tx, nil
 }
