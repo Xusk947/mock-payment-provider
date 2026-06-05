@@ -22,8 +22,10 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Generate swagger docs
-RUN go install github.com/swaggo/swag/cmd/swag@latest && \
+# Generate sqlc code and swagger docs
+RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest && \
+    go install github.com/swaggo/swag/cmd/swag@latest && \
+    cd sqlc && sqlc generate && cd .. && \
     swag init -g cmd/server/main.go --output cmd/server/docs
 
 # Build the application with CGO enabled for embedded SQLite
