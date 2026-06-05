@@ -53,6 +53,25 @@ const (
 	TypeRefund  TransactionType = "refund"
 )
 
+// Payment method constants.
+const (
+	MethodCard = "card"
+)
+
+// Card type constants.
+const (
+	CardVisa       = "visa"
+	CardMastercard = "mastercard"
+	CardAmex       = "amex"
+	CardDiscover   = "discover"
+	CardUnknown    = "unknown"
+)
+
+// Scenario response constants.
+const (
+	ScenarioSuccess = "success"
+)
+
 // Merchant represents a payment merchant
 type Merchant struct {
 	ID         int       `json:"id"`

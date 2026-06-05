@@ -1,25 +1,75 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { format } from 'date-fns'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { paymentsApi } from '@/lib/api'
 
 export default function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const txId = Number(id)
+
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const { data: transaction, isLoading, error } = useQuery({
     queryKey: ['transaction', id],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/v1/transactions/${id}`)
-      if (!response.ok) throw new Error('Failed to fetch transaction')
-      return response.json()
+      const res = await paymentsApi.apiV1TransactionsIdGet(txId)
+      return res as any
     },
+  })
+
+  const handleError = (err: any) => {
+    setNotification({ type: 'error', message: err?.message || 'Something went wrong' })
+    setTimeout(() => setNotification(null), 5000)
+  }
+
+  const handleSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['transaction', id] })
+    setNotification({ type: 'success', message: 'Operation completed successfully' })
+    setTimeout(() => setNotification(null), 3000)
+  }
+
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      const res = await paymentsApi.apiV1TransactionsIdConfirmPost(txId)
+      return res as any
+    },
+    onSuccess: handleSuccess,
+    onError: handleError,
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: async () => {
+      const res = await paymentsApi.apiV1TransactionsIdRejectPost(txId)
+      return res as any
+    },
+    onSuccess: handleSuccess,
+    onError: handleError,
+  })
+
+  const captureMutation = useMutation({
+    mutationFn: async () => {
+      const res = await paymentsApi.apiV1TransactionsIdCapturePost(txId, { amount: transaction.amount } as any)
+      return res as any
+    },
+    onSuccess: handleSuccess,
+    onError: handleError,
+  })
+
+  const refundMutation = useMutation({
+    mutationFn: async () => {
+      const res = await paymentsApi.apiV1TransactionsIdRefundPost(txId, { amount: transaction.amount } as any)
+      return res as any
+    },
+    onSuccess: handleSuccess,
+    onError: handleError,
   })
 
   const getStatusColor = (status: string) => {
@@ -57,8 +107,15 @@ export default function TransactionDetailPage() {
   return (
     <div className="space-y-6">
       <Button variant="outline" onClick={() => navigate('/transactions')}>
-        ← Back to Transactions
+        &larr; Back to Transactions
       </Button>
+
+      {notification && (
+        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'}>
+          <AlertTitle>{notification.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
+          <AlertDescription>{notification.message}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
@@ -66,7 +123,7 @@ export default function TransactionDetailPage() {
             <div>
               <CardTitle>Transaction Details</CardTitle>
               <CardDescription>
-                Transaction #{transaction.id} • {format(new Date(transaction.created_at), 'PPP')}
+                Transaction #{transaction.id} &bull; {format(new Date(transaction.created_at), 'PPP')}
               </CardDescription>
             </div>
             <Badge variant={transaction.status === 'completed' ? 'default' : 'destructive'}>
@@ -100,7 +157,7 @@ export default function TransactionDetailPage() {
               </div>
               <div>
                 <label className="text font-medium">Last 4 Digits</label>
-                <p className="font-mono">••••{transaction.card_number_last4 || 'N/A'}</p>
+                <p className="font-mono">&bull;&bull;&bull;&bull;{transaction.card_number_last4 || 'N/A'}</p>
               </div>
             </div>
 
@@ -188,26 +245,29 @@ export default function TransactionDetailPage() {
           {/* Actions */}
           {transaction.status === 'pending' && (
             <div className="flex gap-2">
-              <Link to={`/confirm/${transaction.id}`}>
-                <Button>Confirm Transaction</Button>
-              </Link>
+              <Button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
+                {confirmMutation.isPending ? 'Confirming...' : 'Confirm Transaction'}
+              </Button>
+              <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
+                {rejectMutation.isPending ? 'Rejecting...' : 'Reject Transaction'}
+              </Button>
             </div>
           )}
 
           {transaction.status === 'authorized' && (
             <div className="flex gap-2">
-              <Button variant="destructive" onClick={() => navigate('/')}>
-                Reject Transaction
+              <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
+                {rejectMutation.isPending ? 'Rejecting...' : 'Reject Transaction'}
               </Button>
-              <Button>
-                Capture Amount
+              <Button onClick={() => captureMutation.mutate()} disabled={captureMutation.isPending}>
+                {captureMutation.isPending ? 'Capturing...' : 'Capture Amount'}
               </Button>
             </div>
           )}
 
           {(transaction.status === 'completed' || transaction.status === 'captured') && (
-            <Button variant="outline">
-              Issue Refund
+            <Button variant="outline" onClick={() => refundMutation.mutate()} disabled={refundMutation.isPending}>
+              {refundMutation.isPending ? 'Refunding...' : 'Issue Refund'}
             </Button>
           )}
         </CardContent>

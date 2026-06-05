@@ -1,94 +1,52 @@
-import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
+import {
+  useDashboardStats,
+  useMerchants,
+  useCards,
+  useErrorScenarios,
+  type Merchant,
+  type Card as AdminCard,
+  type ErrorScenario,
+} from '@/hooks/use-admin'
 
-interface Merchant {
-  id: number
-  name: string
-  email: string
-  active: boolean
-  webhook_url: string
-  created_at: string
+interface StatCardProps {
+  title: string
+  value: React.ReactNode
+  subtitle: string
 }
 
-interface Card {
-  id: number
-  card_number: string
-  cardholder_name: string
-  card_type: string
-  response_scenario: string
-  require_3ds: boolean
-  created_at: string
+function StatCard({ title, value, subtitle }: StatCardProps) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+      </CardContent>
+    </Card>
+  )
 }
-
-interface ErrorScenario {
-  id: number
-  name: string
-  error_code: string
-  error_message: string
-  probability: number
-  active: boolean
-  created_at: string
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 export default function AdminDashboard() {
-  const { data: stats } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/dashboard`, {
-        headers: {
-          'X-API-Key': 'test_api_key_12345',
-        },
-      })
-      if (!response.ok) throw new Error('Failed to fetch stats')
-      return response.json()
-    },
-  })
+  const { data: stats } = useDashboardStats()
+  const { data: merchants, isLoading: merchantsLoading } = useMerchants()
+  const { data: cards, isLoading: cardsLoading } = useCards()
+  const { data: errorScenarios, isLoading: scenariosLoading } = useErrorScenarios()
 
-  const { data: merchants, isLoading: merchantsLoading } = useQuery({
-    queryKey: ['merchants'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/merchants`, {
-        headers: {
-          'X-API-Key': 'test_api_key_12345',
-        },
-      })
-      if (!response.ok) throw new Error('Failed to fetch merchants')
-      return response.json()
-    },
-  })
+  const successRate = stats?.total_transactions
+    ? Math.round((stats.successful_transactions / stats.total_transactions) * 100)
+    : 0
 
-  const { data: cards, isLoading: cardsLoading } = useQuery({
-    queryKey: ['cards'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/cards`, {
-        headers: {
-          'X-API-Key': 'test_api_key_12345',
-        },
-      })
-      if (!response.ok) throw new Error('Failed to fetch cards')
-      return response.json()
-    },
-  })
-
-  const { data: errorScenarios, isLoading: scenariosLoading } = useQuery({
-    queryKey: ['error-scenarios'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/admin/error-scenarios`, {
-        headers: {
-          'X-API-Key': 'test_api_key_12345',
-        },
-      })
-      if (!response.ok) throw new Error('Failed to fetch error scenarios')
-      return response.json()
-    },
-  })
+  const failureRate = stats?.total_transactions
+    ? Math.round((stats.failed_transactions / stats.total_transactions) * 100)
+    : 0
 
   return (
     <div className="space-y-6">
@@ -97,69 +55,34 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground">Monitor and manage your payment provider</p>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_transactions || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">All time transactions</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats?.total_transactions
-                ? Math.round((stats.successful_transactions / stats.total_transactions) * 100)
-                : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats?.successful_transactions || 0} successful
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${stats?.total_amount?.toFixed(2) || '0.00'}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Total processed</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Failed Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats?.failed_transactions || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats?.total_transactions
-                ? Math.round((stats.failed_transactions / stats.total_transactions) * 100)
-                : 0}% failure rate
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Transactions"
+          value={stats?.total_transactions ?? 0}
+          subtitle="All time transactions"
+        />
+        <StatCard
+          title="Success Rate"
+          value={<span className="text-green-600">{successRate}%</span>}
+          subtitle={`${stats?.successful_transactions ?? 0} successful`}
+        />
+        <StatCard
+          title="Total Amount"
+          value={`$${stats?.total_amount?.toFixed(2) ?? '0.00'}`}
+          subtitle="Total processed"
+        />
+        <StatCard
+          title="Failed Transactions"
+          value={<span className="text-red-600">{stats?.failed_transactions ?? 0}</span>}
+          subtitle={`${failureRate}% failure rate`}
+        />
       </div>
 
-      {/* Management Tabs */}
       <Tabs defaultValue="merchants" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="merchants">Merchants ({stats?.active_merchants || 0})</TabsTrigger>
-          <TabsTrigger value="cards">Cards ({stats?.active_cards || 0})</TabsTrigger>
-          <TabsTrigger value="scenarios">
-            Error Scenarios ({stats?.active_scenarios || 0})
-          </TabsTrigger>
+          <TabsTrigger value="merchants">Merchants ({stats?.active_merchants ?? 0})</TabsTrigger>
+          <TabsTrigger value="cards">Cards ({stats?.active_cards ?? 0})</TabsTrigger>
+          <TabsTrigger value="scenarios">Error Scenarios ({stats?.active_scenarios ?? 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="merchants" className="space-y-4">
@@ -199,7 +122,7 @@ export default function AdminDashboard() {
                           {merchant.webhook_url || 'N/A'}
                         </TableCell>
                         <TableCell>
-                          {format(new Date(merchant.created_at), 'MMM dd, yyyy')}
+                          {merchant.created_at ? format(new Date(merchant.created_at), 'MMM dd, yyyy') : 'N/A'}
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm">
@@ -238,7 +161,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cards?.map((card: Card) => (
+                    {cards?.map((card: AdminCard) => (
                       <TableRow key={card.id}>
                         <TableCell>{card.id}</TableCell>
                         <TableCell className="font-mono">{card.card_number}</TableCell>
@@ -253,7 +176,7 @@ export default function AdminDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {format(new Date(card.created_at), 'MMM dd, yyyy')}
+                          {card.created_at ? format(new Date(card.created_at), 'MMM dd, yyyy') : 'N/A'}
                         </TableCell>
                       </TableRow>
                     ))}

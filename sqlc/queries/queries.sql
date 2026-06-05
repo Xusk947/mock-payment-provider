@@ -1,23 +1,11 @@
 -- name: GetTransaction :one
-SELECT id, amount, currency, status, payment_method, metadata, merchant_id, card_id,
-       transaction_type, parent_transaction_id, card_number_last4, card_type, authorization_code,
-       error_code, error_message, three_ds_required, three_ds_authenticated, three_ds_transaction_id,
-       amount_refunded, amount_captured, expires_at, created_at, updated_at
-FROM transactions WHERE id = ?;
+SELECT * FROM transactions WHERE id = ?;
 
 -- name: ListTransactions :many
-SELECT id, amount, currency, status, payment_method, metadata, merchant_id, card_id,
-       transaction_type, parent_transaction_id, card_number_last4, card_type, authorization_code,
-       error_code, error_message, three_ds_required, three_ds_authenticated, three_ds_transaction_id,
-       amount_refunded, amount_captured, expires_at, created_at, updated_at
-FROM transactions ORDER BY created_at DESC LIMIT ? OFFSET ?;
+SELECT * FROM transactions ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 -- name: ListTransactionsByMerchant :many
-SELECT id, amount, currency, status, payment_method, metadata, merchant_id, card_id,
-       transaction_type, parent_transaction_id, card_number_last4, card_type, authorization_code,
-       error_code, error_message, three_ds_required, three_ds_authenticated, three_ds_transaction_id,
-       amount_refunded, amount_captured, expires_at, created_at, updated_at
-FROM transactions WHERE merchant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?;
+SELECT * FROM transactions WHERE merchant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 -- name: CreateTransaction :one
 INSERT INTO transactions (amount, currency, status, payment_method, metadata, merchant_id, card_id,
@@ -25,10 +13,7 @@ INSERT INTO transactions (amount, currency, status, payment_method, metadata, me
                          error_code, error_message, three_ds_required, three_ds_authenticated, three_ds_transaction_id,
                          amount_refunded, amount_captured, expires_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, amount, currency, status, payment_method, metadata, merchant_id, card_id,
-          transaction_type, parent_transaction_id, card_number_last4, card_type, authorization_code,
-          error_code, error_message, three_ds_required, three_ds_authenticated, three_ds_transaction_id,
-          amount_refunded, amount_captured, expires_at, created_at, updated_at;
+RETURNING *;
 
 -- name: UpdateTransactionStatus :exec
 UPDATE transactions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;

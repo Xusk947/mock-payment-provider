@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { paymentsApi } from '@/lib/api'
 
 const ERROR_SCENARIOS = [
   { id: 1, name: 'Success', error_code: '', error_message: '', probability: 0 },
@@ -17,35 +19,36 @@ const ERROR_SCENARIOS = [
 export default function TransactionConfirmationPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [selectedScenario, setSelectedScenario] = useState('success')
-  const [isLoading, setIsLoading] = useState(false)
+  const [selectedScenario, setSelectedScenario] = useState('Success')
+  const txId = Number(id)
 
-  const handleConfirm = async () => {
-    setIsLoading(true)
-    try {
-      if (selectedScenario === 'success') {
-        // Simulate successful confirmation
-        alert('Transaction confirmed successfully!')
-        navigate(`/transactions/${id}`)
-      } else {
-        // Apply error scenario
-        const scenario = ERROR_SCENARIOS.find(s => s.name === selectedScenario)
-        if (scenario) {
-          alert(`Transaction failed: ${scenario.error_code} - ${scenario.error_message}`)
-          navigate(`/transactions/${id}`)
-        }
-      }
-    } catch (error) {
-      alert('Error processing transaction')
-    } finally {
-      setIsLoading(false)
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      const res = await paymentsApi.apiV1TransactionsIdConfirmPost(txId)
+      return res as any
+    },
+    onSuccess: () => navigate(`/transactions/${id}`),
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: async () => {
+      const res = await paymentsApi.apiV1TransactionsIdRejectPost(txId)
+      return res as any
+    },
+    onSuccess: () => navigate('/transactions'),
+  })
+
+  const handleConfirm = () => {
+    if (selectedScenario === 'Success') {
+      confirmMutation.mutate()
+    } else {
+      rejectMutation.mutate()
     }
   }
 
   const handleReject = () => {
     if (confirm('Are you sure you want to reject this transaction?')) {
-      alert('Transaction rejected')
-      navigate('/transactions')
+      rejectMutation.mutate()
     }
   }
 
@@ -139,10 +142,10 @@ export default function TransactionConfirmationPage() {
 
             {/* Actions */}
             <div className="flex gap-2">
-              <Button onClick={handleConfirm} disabled={isLoading}>
-                {isLoading ? 'Processing...' : 'Confirm Transaction'}
+              <Button onClick={handleConfirm} disabled={confirmMutation.isPending || rejectMutation.isPending}>
+                {confirmMutation.isPending || rejectMutation.isPending ? 'Processing...' : 'Confirm Transaction'}
               </Button>
-              <Button variant="destructive" onClick={handleReject}>
+              <Button variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending}>
                 Reject Transaction
               </Button>
               <Button variant="outline" onClick={handleCancel}>

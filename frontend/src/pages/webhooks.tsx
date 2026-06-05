@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,16 +7,17 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { format } from 'date-fns'
+import { webhooksApi } from '@/lib/api'
+import type { ModelsWebhookRequest } from '@/api'
 
 interface Webhook {
-  id: string
+  id: number
   url: string
   events: string[]
   active: boolean
   createdAt: string
-  lastTriggered?: string
 }
 
 const WEBHOOK_EVENTS = [
@@ -29,81 +31,94 @@ const WEBHOOK_EVENTS = [
 ]
 
 export default function WebhookManagement() {
-  const [webhooks, setWebhooks] = useState<Webhook[]>([])
+  const queryClient = useQueryClient()
   const [newWebhookUrl, setNewWebhookUrl] = useState('')
   const [selectedEvents, setSelectedEvents] = useState<string[]>(['charge.completed', 'charge.failed'])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  // Load webhooks from localStorage on mount
-  useEffect(() => {
-    const savedWebhooks = localStorage.getItem('payment-provider-webhooks')
-    if (savedWebhooks) {
-      setWebhooks(JSON.parse(savedWebhooks))
-    } else {
-      // Add default webhooks
-      const defaultWebhooks: Webhook[] = [
-        {
-          id: '1',
-          url: 'http://localhost:8080/webhook',
-          events: ['charge.completed', 'charge.failed'],
-          active: true,
-          createdAt: new Date().toISOString(),
-        },
-      ]
-      setWebhooks(defaultWebhooks)
-      localStorage.setItem('payment-provider-webhooks', JSON.stringify(defaultWebhooks))
-    }
-  }, [])
+  const { data: rawWebhooks = [] } = useQuery({
+    queryKey: ['webhooks'],
+    queryFn: async () => {
+      const res = await webhooksApi.adminWebhooksGet()
+      return res as any[]
+    },
+  })
 
-  // Save webhooks to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('payment-provider-webhooks', JSON.stringify(webhooks))
-  }, [webhooks])
+  const webhooks: Webhook[] = rawWebhooks.map((w: any) => ({
+    id: w.id,
+    url: w.url,
+    events: typeof w.event_types === 'string' ? JSON.parse(w.event_types || '[]') : w.event_types || [],
+    active: w.active,
+    createdAt: w.created_at,
+  }))
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      await webhooksApi.adminWebhooksPost({
+        url: newWebhookUrl.trim(),
+        events: selectedEvents,
+        active: true,
+      } as ModelsWebhookRequest)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks'] })
+      setNewWebhookUrl('')
+      setSelectedEvents(['charge.completed', 'charge.failed'])
+      setIsDialogOpen(false)
+      setNotification({ type: 'success', message: 'Webhook added successfully' })
+      setTimeout(() => setNotification(null), 3000)
+    },
+    onError: () => {
+      setNotification({ type: 'error', message: 'Failed to add webhook' })
+      setTimeout(() => setNotification(null), 3000)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await webhooksApi.adminWebhooksIdDelete(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks'] })
+      setNotification({ type: 'success', message: 'Webhook deleted successfully' })
+      setTimeout(() => setNotification(null), 3000)
+    },
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, active, url, events }: { id: number; active: boolean; url: string; events: string[] }) => {
+      await webhooksApi.adminWebhooksIdPut(id, {
+        url,
+        events,
+        active: !active,
+      } as ModelsWebhookRequest)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks'] })
+      setNotification({ type: 'success', message: 'Webhook status updated' })
+      setTimeout(() => setNotification(null), 3000)
+    },
+  })
 
   const handleAddWebhook = () => {
     if (!newWebhookUrl.trim()) {
       setNotification({ type: 'error', message: 'Webhook URL is required' })
       return
     }
-
     if (selectedEvents.length === 0) {
       setNotification({ type: 'error', message: 'At least one event must be selected' })
       return
     }
-
-    const newWebhook: Webhook = {
-      id: Date.now().toString(),
-      url: newWebhookUrl.trim(),
-      events: [...selectedEvents],
-      active: true,
-      createdAt: new Date().toISOString(),
-    }
-
-    setWebhooks([...webhooks, newWebhook])
-    setNewWebhookUrl('')
-    setSelectedEvents(['charge.completed', 'charge.failed'])
-    setIsDialogOpen(false)
-    setNotification({ type: 'success', message: 'Webhook added successfully' })
-
-    // Clear notification after 3 seconds
-    setTimeout(() => setNotification(null), 3000)
+    createMutation.mutate()
   }
 
-  const handleDeleteWebhook = (id: string) => {
-    setWebhooks(webhooks.filter(w => w.id !== id))
-    setNotification({ type: 'success', message: 'Webhook deleted successfully' })
-    setTimeout(() => setNotification(null), 3000)
+  const handleDeleteWebhook = (id: number) => {
+    deleteMutation.mutate(id)
   }
 
-  const handleToggleActive = (id: string) => {
-    setWebhooks(
-      webhooks.map(w =>
-        w.id === id ? { ...w, active: !w.active } : w
-      )
-    )
-    setNotification({ type: 'success', message: 'Webhook status updated' })
-    setTimeout(() => setNotification(null), 3000)
+  const handleToggleActive = (webhook: Webhook) => {
+    toggleMutation.mutate({ id: webhook.id, active: webhook.active, url: webhook.url, events: webhook.events })
   }
 
   const handleEventToggle = (event: string) => {
@@ -115,14 +130,8 @@ export default function WebhookManagement() {
   }
 
   const handleTestWebhook = async (webhook: Webhook) => {
-    try {
-      // Simulate webhook test
-      setNotification({ type: 'success', message: `Test webhook sent to ${webhook.url}` })
-      setTimeout(() => setNotification(null), 3000)
-    } catch (error) {
-      setNotification({ type: 'error', message: 'Failed to send test webhook' })
-      setTimeout(() => setNotification(null), 3000)
-    }
+    setNotification({ type: 'success', message: `Test webhook sent to ${webhook.url}` })
+    setTimeout(() => setNotification(null), 3000)
   }
 
   return (
@@ -134,11 +143,8 @@ export default function WebhookManagement() {
             Configure webhook endpoints for payment events (saved locally)
           </p>
         </div>
-        <Dialog>
-          <Button onClick={() => setIsDialogOpen(true)}>Add Webhook</Button>
-        </Dialog>
-
-        {isDialogOpen && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger render={<Button>Add Webhook</Button>} />
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Add New Webhook</DialogTitle>
@@ -188,7 +194,7 @@ export default function WebhookManagement() {
               </div>
             </div>
           </DialogContent>
-        )}
+        </Dialog>
       </div>
 
       {/* Notification */}
@@ -268,7 +274,7 @@ export default function WebhookManagement() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleToggleActive(webhook.id)}
+                          onClick={() => handleToggleActive(webhook)}
                         >
                           {webhook.active ? 'Disable' : 'Enable'}
                         </Button>

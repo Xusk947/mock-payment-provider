@@ -36,6 +36,37 @@ sqlc/*.go
 *.db-wal
 /database/*.db
 
+# Air live reload
+/tmp/
+tmp/
+
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Build artifacts
+/main
+/server
+
+# Agent / MCP / IDE artifacts
+.playwright-mcp/
+.agents/
+.windsurf/
+skills-lock.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/src/api/
+.env.local
+.env.*.local
+
+# Generated swagger docs
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+cmd/server/docs/
+
+# Build binaries (ensure tracked ones are removed)
+main
+server

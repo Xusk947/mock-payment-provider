@@ -1,57 +1,17 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { format } from 'date-fns'
-
-interface Transaction {
-  id: number
-  amount: number
-  currency: string
-  status: string
-  payment_method: string
-  card_type: string
-  card_number_last4: string
-  authorization_code: string
-  error_code?: string
-  error_message?: string
-  created_at: string
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { useTransactions, type Transaction } from '@/hooks/use-transactions'
+import { getStatusVariant } from '@/utils/status'
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const { data: transactions, isLoading, error } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/v1/transactions`)
-      if (!response.ok) throw new Error('Failed to fetch transactions')
-      return response.json()
-    },
-  })
-
-  const getStatusVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-      case 'captured':
-      case 'authorized':
-        return 'default'
-      case 'pending':
-        return 'secondary'
-      case 'failed':
-      case 'declined':
-        return 'destructive'
-      case 'refunded':
-        return 'outline'
-      default:
-        return 'secondary'
-    }
-  }
+  const { data: transactions, isLoading, error } = useTransactions()
 
   const filteredTransactions = transactions?.filter((tx: Transaction) =>
     tx.card_number_last4?.includes(searchTerm) ||
@@ -103,20 +63,20 @@ export default function TransactionsPage() {
                   <TableRow key={tx.id}>
                     <TableCell>{tx.id}</TableCell>
                     <TableCell>
-                      {tx.amount.toFixed(2)} {tx.currency}
+                      {(tx.amount ?? 0).toFixed(2)} {tx.currency || 'USD'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusVariant(tx.status)}>
-                        {tx.status}
+                        {tx.status || 'unknown'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="capitalize">{tx.card_type}</TableCell>
+                    <TableCell className="capitalize">{tx.card_type || 'N/A'}</TableCell>
                     <TableCell>••••{tx.card_number_last4 || 'N/A'}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {tx.authorization_code || 'N/A'}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(tx.created_at), 'MMM dd, yyyy')}
+                      {tx.created_at ? format(new Date(tx.created_at), 'MMM dd, yyyy') : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
