@@ -28,6 +28,7 @@ UPDATE transactions SET amount_refunded = amount_refunded + ?, updated_at = CURR
 DELETE FROM transactions WHERE id = ?;
 
 -- name: GetMerchantByAPIKey :one
+-- #nosec G101 -- api_key is a column name, not a hardcoded credential
 SELECT id, name, api_key, email, active, webhook_url, created_at, updated_at
 FROM merchants WHERE api_key = ? AND active = 1;
 

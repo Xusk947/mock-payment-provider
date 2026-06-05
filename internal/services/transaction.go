@@ -128,8 +128,10 @@ func (s *TransactionService) Charge(ctx context.Context, req *models.ChargeReque
 
 	// Send webhook if transaction completed
 	if tx.Status == string(models.StatusCompleted) {
+		// #nosec G118 -- async webhook, intentionally uses background context
 		go s.webhookService.SendWebhook(context.Background(), int(merchant.ID), "charge.completed", tx)
 	} else if tx.Status == string(models.StatusFailed) {
+		// #nosec G118 -- async webhook, intentionally uses background context
 		go s.webhookService.SendWebhook(context.Background(), int(merchant.ID), "charge.failed", tx)
 	}
 
@@ -239,9 +241,11 @@ func (s *TransactionService) PayInvoice(ctx context.Context, id int, req *models
 
 	if tx.MerchantID.Valid {
 		if tx.Status == "completed" {
-			go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.completed", tx)
+			// #nosec G118 -- async webhook, intentionally uses background context
+		go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.completed", tx)
 		} else if tx.Status == "failed" {
-			go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.failed", tx)
+			// #nosec G118 -- async webhook, intentionally uses background context
+		go s.webhookService.SendWebhook(context.Background(), int(tx.MerchantID.Int64), "charge.failed", tx)
 		}
 	}
 
@@ -282,7 +286,8 @@ func (s *TransactionService) Hold(ctx context.Context, req *models.ChargeRequest
 		return nil, fmt.Errorf("failed to create hold: %w", err)
 	}
 
-	go s.webhookService.SendWebhook(context.Background(), int(merchant.ID), "hold.created", tx)
+	// #nosec G118 -- async webhook, intentionally uses background context
+		go s.webhookService.SendWebhook(context.Background(), int(merchant.ID), "hold.created", tx)
 
 	return tx, nil
 }
@@ -319,6 +324,7 @@ func (s *TransactionService) Capture(ctx context.Context, holdID int, amount flo
 	}
 
 	if hold.MerchantID.Valid {
+		// #nosec G118 -- async webhook, intentionally uses background context
 		go s.webhookService.SendWebhook(context.Background(), int(hold.MerchantID.Int64), "capture.completed", tx)
 	}
 
@@ -383,6 +389,7 @@ func (s *TransactionService) Refund(ctx context.Context, transactionID int, amou
 	}
 
 	if originalTx.MerchantID.Valid {
+		// #nosec G118 -- async webhook, intentionally uses background context
 		go s.webhookService.SendWebhook(context.Background(), int(originalTx.MerchantID.Int64), "refund.completed", tx)
 	}
 
@@ -493,6 +500,7 @@ func (s *TransactionService) RefundByID(ctx context.Context, transactionID int, 
 	}
 
 	if originalTx.MerchantID.Valid {
+		// #nosec G118 -- async webhook, intentionally uses background context
 		go s.webhookService.SendWebhook(context.Background(), int(originalTx.MerchantID.Int64), "refund.completed", tx)
 	}
 
