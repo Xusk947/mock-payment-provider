@@ -198,23 +198,17 @@ func (h *AdminHandler) Dashboard(c fiber.Ctx) error {
 		"successful_transactions": 0,
 		"total_amount":            0.0,
 		"failed_transactions":     0,
-		"active_merchants":        0,
-		"active_cards":            0,
+		"total_merchants":         0,
+		"total_cards":             0,
 		"active_scenarios":        0,
 	}
 
 	if merchants, err := h.merchantRepo.List(c.Context(), 1000, 0); err == nil {
-		active := 0
-		for _, m := range merchants {
-			if m.Active.Valid && m.Active.Bool {
-				active++
-			}
-		}
-		dashboard["active_merchants"] = active
+		dashboard["total_merchants"] = len(merchants)
 	}
 
 	if cards, err := h.cardRepo.List(c.Context()); err == nil {
-		dashboard["active_cards"] = len(cards)
+		dashboard["total_cards"] = len(cards)
 	}
 
 	if scenarios, err := h.errorRepo.ListActive(c.Context()); err == nil {

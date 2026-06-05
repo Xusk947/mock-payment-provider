@@ -23,8 +23,12 @@ type Config struct {
 
 // DefaultConfig returns a default configuration
 func DefaultConfig() *Config {
+	path := os.Getenv("DATABASE_PATH")
+	if path == "" {
+		path = "database/payments.db"
+	}
 	return &Config{
-		Path: "database/payments.db",
+		Path: path,
 	}
 }
 

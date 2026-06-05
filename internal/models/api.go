@@ -11,8 +11,8 @@ type DashboardResponse struct {
 	SuccessfulTransactions int     `json:"successful_transactions"`
 	TotalAmount            float64 `json:"total_amount"`
 	FailedTransactions     int     `json:"failed_transactions"`
-	ActiveMerchants        int     `json:"active_merchants"`
-	ActiveCards            int     `json:"active_cards"`
+	TotalMerchants         int     `json:"total_merchants"`
+	TotalCards             int     `json:"total_cards"`
 	ActiveScenarios        int     `json:"active_scenarios"`
 }
 

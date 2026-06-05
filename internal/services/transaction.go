@@ -109,11 +109,18 @@ func (s *TransactionService) Charge(ctx context.Context, req *models.ChargeReque
 		AmountCaptured:       sql.NullFloat64{Float64: req.Amount, Valid: true},
 	}
 
+	// Determine effective card scenario for error application
+	// 3DS-required cards that are authenticated should be treated as success
+	effectiveCardScenario := cardResponseScenario
+	if effectiveCardScenario == "3ds_required" && req.ThreeDSAuthenticated {
+		effectiveCardScenario = models.ScenarioSuccess
+	}
+
 	// Apply error scenario only for non-success cards
-	if cardResponseScenario != models.ScenarioSuccess {
+	if effectiveCardScenario != models.ScenarioSuccess {
 		scenario, err := s.errorService.GetActiveScenario(ctx)
 		if err == nil && scenario != nil {
-			scenario, err = s.errorService.ApplyScenario(ctx, scenario, cardResponseScenario)
+			scenario, err = s.errorService.ApplyScenario(ctx, scenario, effectiveCardScenario)
 			if err == nil && scenario != nil {
 				tx.Status = string(models.StatusFailed)
 				tx.ErrorCode = sql.NullString{String: scenario.ErrorCode, Valid: true}

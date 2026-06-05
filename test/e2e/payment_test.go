@@ -305,11 +305,12 @@ func TestFullPaymentFlow_VisaCard_Success(t *testing.T) {
 		}
 
 		resp := sendChargeRequest(t, test.baseURL, req)
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
 		var errResp map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&errResp)
 
+		assert.Equal(t, "failed", errResp["status"])
 		assert.Equal(t, "INSUFFICIENT_FUNDS", errResp["error_code"])
 	})
 
