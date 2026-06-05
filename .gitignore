@@ -50,9 +50,7 @@ tmp/
 
 # Agent / MCP / IDE artifacts
 .playwright-mcp/
-.agents/
 .windsurf/
-skills-lock.json
 
 # Frontend
 frontend/node_modules/
