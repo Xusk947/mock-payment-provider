@@ -22,6 +22,10 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Generate swagger docs
+RUN go install github.com/swaggo/swag/cmd/swag@latest && \
+    swag init -g cmd/server/main.go --output cmd/server/docs
+
 # Build the application with CGO enabled for embedded SQLite
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -tags sqlite_omit_load_extension -ldflags "-s -w" -o /app/server ./cmd/server
 

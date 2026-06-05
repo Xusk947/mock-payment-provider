@@ -86,7 +86,7 @@ func (h *PaymentHandler) Hold(c fiber.Ctx) error {
 // @Tags payments
 // @Accept json
 // @Produce json
-// @Param request body CaptureRequest true "Capture Request"
+// @Param request body models.CaptureRequest true "Capture Request"
 // @Success 201 {object} models.Transaction
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
@@ -111,7 +111,7 @@ func (h *PaymentHandler) Capture(c fiber.Ctx) error {
 // @Tags payments
 // @Accept json
 // @Produce json
-// @Param request body RefundRequest true "Refund Request"
+// @Param request body models.RefundRequest true "Refund Request"
 // @Success 201 {object} models.Transaction
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse

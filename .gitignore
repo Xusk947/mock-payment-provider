@@ -68,3 +68,4 @@ cmd/server/docs/
 # Build binaries (ensure tracked ones are removed)
 main
 server
+bin/

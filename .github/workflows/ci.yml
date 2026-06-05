@@ -29,10 +29,14 @@ jobs:
         go mod download
         go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
         go install github.com/pressly/goose/v3/cmd/goose@latest
+        go install github.com/swaggo/swag/cmd/swag@latest
 
     - name: Generate sqlc code
       run: |
         cd sqlc && ~/go/bin/sqlc generate
+
+    - name: Generate swagger docs
+      run: ~/go/bin/swag init -g cmd/server/main.go --output cmd/server/docs
 
     - name: Run unit tests
       run: go test ./... -v -coverprofile=coverage.out -short
@@ -69,10 +73,14 @@ jobs:
         go mod download
         go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
         go install github.com/pressly/goose/v3/cmd/goose@latest
+        go install github.com/swaggo/swag/cmd/swag@latest
 
     - name: Generate sqlc code
       run: |
         cd sqlc && ~/go/bin/sqlc generate
+
+    - name: Generate swagger docs
+      run: ~/go/bin/swag init -g cmd/server/main.go --output cmd/server/docs
 
     - name: Build application
       run: go build ./cmd/server
