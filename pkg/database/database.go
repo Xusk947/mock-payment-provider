@@ -38,8 +38,12 @@ func New(cfg *Config) (*DB, error) {
 		cfg = DefaultConfig()
 	}
 
+	// Sanitize path to prevent directory traversal (DATABASE_PATH is a config value)
+	cfg.Path = filepath.Clean(cfg.Path)
+
 	// Ensure the database directory exists
 	dbDir := filepath.Dir(cfg.Path)
+	// #nosec G703 -- DATABASE_PATH is an intentional config value, not untrusted user input
 	if err := os.MkdirAll(dbDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
