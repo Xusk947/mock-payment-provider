@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	db "github.com/xusk947/mock-payment-provider/sqlc"
 )
@@ -61,8 +62,9 @@ func (s *CardValidationService) ValidateCard(ctx context.Context, cardNumber, ca
 	}
 
 	// Expiry date check
-	currentYear := 2026 // In production, this should be actual current year
-	currentMonth := 5   // In production, this should be actual current month
+	now := time.Now()
+	currentYear := now.Year()
+	currentMonth := int(now.Month())
 
 	if expiryYear < currentYear || (expiryYear == currentYear && expiryMonth < currentMonth) {
 		return fmt.Errorf("card has expired")

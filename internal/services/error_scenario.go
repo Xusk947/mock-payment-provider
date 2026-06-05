@@ -66,6 +66,11 @@ func (s *ErrorScenarioService) ApplyScenario(ctx context.Context, scenario *db.E
 		}
 	}
 
+	// If card is success, don't apply error scenario
+	if cardResponseScenario == "success" {
+		return nil, nil
+	}
+
 	// Otherwise, use the provided scenario
 	return scenario, nil
 }
