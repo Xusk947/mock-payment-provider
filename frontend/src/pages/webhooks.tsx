@@ -122,10 +122,8 @@ export default function WebhookManagement() {
   }
 
   const handleEventToggle = (event: string) => {
-    setSelectedEvents(prev =>
-      prev.includes(event)
-        ? prev.filter(e => e !== event)
-        : [...prev, event]
+    setSelectedEvents((prev) =>
+      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event]
     )
   }
 
@@ -135,48 +133,43 @@ export default function WebhookManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Webhook Management</h1>
-          <p className="text-muted-foreground">
-            Configure webhook endpoints for payment events (saved locally)
-          </p>
+    <div className="flex flex-col gap-10">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-4xl font-semibold tracking-tight">Webhook Management</h1>
+          <p className="text-lg text-muted-foreground">Configure webhook endpoints for payment events</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger render={<Button>Add Webhook</Button>} />
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Add New Webhook</DialogTitle>
-              <DialogDescription>
-                Configure a new webhook endpoint to receive payment event notifications
-              </DialogDescription>
+          <DialogTrigger render={<Button className="rounded-full px-6">Add Webhook</Button>} />
+          <DialogContent className="sm:max-w-[500px] rounded-2xl p-6">
+            <DialogHeader className="gap-2">
+              <DialogTitle className="text-xl font-semibold tracking-tight">Add New Webhook</DialogTitle>
+              <DialogDescription>Configure a new webhook endpoint to receive payment event notifications</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="webhook-url">Webhook URL</Label>
+            <div className="flex flex-col gap-6 py-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="webhook-url" className="text-sm font-medium">Webhook URL</Label>
                 <Input
                   id="webhook-url"
                   placeholder="https://your-domain.com/webhook"
                   value={newWebhookUrl}
                   onChange={(e) => setNewWebhookUrl(e.target.value)}
+                  className="rounded-xl"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Must be a valid HTTPS URL for production
-                </p>
+                <p className="text-xs text-muted-foreground">Must be a valid HTTPS URL for production</p>
               </div>
 
-              <div>
-                <Label>Events to Subscribe</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {WEBHOOK_EVENTS.map(event => (
-                    <div key={event} className="flex items-center space-x-2">
+              <div className="flex flex-col gap-3">
+                <Label className="text-sm font-medium">Events to Subscribe</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {WEBHOOK_EVENTS.map((event) => (
+                    <div key={event} className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         id={event}
                         checked={selectedEvents.includes(event)}
                         onChange={() => handleEventToggle(event)}
-                        className="w-4 h-4"
+                        className="size-4 accent-primary"
                       />
                       <label htmlFor={event} className="text-sm cursor-pointer">
                         {event}
@@ -186,140 +179,140 @@ export default function WebhookManagement() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" className="rounded-full px-6" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddWebhook}>Add Webhook</Button>
+                <Button className="rounded-full px-6" onClick={handleAddWebhook}>
+                  Add Webhook
+                </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Notification */}
       {notification && (
-        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'}>
-          <AlertTitle>
-            {notification.type === 'success' ? 'Success' : 'Error'}
-          </AlertTitle>
+        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'} className="rounded-2xl">
+          <AlertTitle>{notification.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
           <AlertDescription>{notification.message}</AlertDescription>
         </Alert>
       )}
 
-      {/* Webhooks Table */}
       {webhooks.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground mb-4">No webhooks configured</p>
-            <Button onClick={() => setIsDialogOpen(true)}>Add Your First Webhook</Button>
+        <Card className="rounded-2xl border-border/60 shadow-xs">
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <p className="text-muted-foreground text-lg">No webhooks configured</p>
+            <Button onClick={() => setIsDialogOpen(true)} className="rounded-full px-6">
+              Add Your First Webhook
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Configured Webhooks</CardTitle>
+        <Card className="rounded-2xl border-border/60 shadow-xs overflow-hidden">
+          <CardHeader className="gap-2">
+            <CardTitle className="text-xl font-semibold tracking-tight">Configured Webhooks</CardTitle>
             <CardDescription>
               {webhooks.length} webhook{webhooks.length !== 1 ? 's' : ''} configured
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>URL</TableHead>
-                  <TableHead>Events</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {webhooks.map(webhook => (
-                  <TableRow key={webhook.id}>
-                    <TableCell className="font-mono text-xs max-w-[300px] truncate">
-                      {webhook.url}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {webhook.events.slice(0, 2).map(event => (
-                          <Badge key={event} variant="secondary" className="text-xs">
-                            {event}
-                          </Badge>
-                        ))}
-                        {webhook.events.length > 2 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{webhook.events.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={webhook.active ? 'default' : 'secondary'}>
-                        {webhook.active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(webhook.createdAt), 'MMM dd, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleTestWebhook(webhook)}
-                        >
-                          Test
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleActive(webhook)}
-                        >
-                          {webhook.active ? 'Disable' : 'Enable'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteWebhook(webhook.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="rounded-2xl border border-border/40 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-border/40">
+                    <TableHead className="text-muted-foreground font-medium">URL</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Events</TableHead>
+                    <TableHead className="text-muted-foreground font-medium">Status</TableHead>
+                    <TableHead className="text-muted-foreground font-medium hidden md:table-cell">Created</TableHead>
+                    <TableHead className="text-muted-foreground font-medium text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {webhooks.map((webhook) => (
+                    <TableRow key={webhook.id} className="group border-border/30 hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-mono text-xs max-w-[300px] truncate">{webhook.url}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {webhook.events.slice(0, 2).map((event) => (
+                            <Badge key={event} variant="secondary" className="rounded-full text-xs">
+                              {event}
+                            </Badge>
+                          ))}
+                          {webhook.events.length > 2 && (
+                            <Badge variant="secondary" className="rounded-full text-xs">
+                              +{webhook.events.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={webhook.active ? 'default' : 'secondary'} className="rounded-full">
+                          {webhook.active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                        {format(new Date(webhook.createdAt), 'MMM dd, yyyy')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleTestWebhook(webhook)}
+                            className="rounded-full text-muted-foreground hover:text-primary"
+                          >
+                            Test
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleActive(webhook)}
+                            className="rounded-full text-muted-foreground hover:text-primary"
+                          >
+                            {webhook.active ? 'Disable' : 'Enable'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteWebhook(webhook.id)}
+                            className="rounded-full text-muted-foreground hover:text-destructive"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Information Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Webhook Configuration Guide</CardTitle>
-          <CardDescription>
-            How to configure webhooks for your application
-          </CardDescription>
+      <Card className="rounded-2xl border-border/60 shadow-xs">
+        <CardHeader className="gap-2">
+          <CardTitle className="text-xl font-semibold tracking-tight">Webhook Configuration Guide</CardTitle>
+          <CardDescription>How to configure webhooks for your application</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <div>
-            <h4 className="font-semibold mb-1">Supported Events</h4>
-            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-              <li><strong>charge.completed</strong> - Payment successfully processed</li>
-              <li><strong>charge.failed</strong> - Payment declined or failed</li>
-              <li><strong>charge.captured</strong> - Hold amount captured</li>
-              <li><strong>charge.refunded</strong> - Payment refunded</li>
-              <li><strong>hold.authorized</strong> - Hold successfully authorized</li>
-              <li><strong>hold.captured</strong> - Hold amount captured</li>
-              <li><strong>3ds.completed</strong> - 3D Secure authentication completed</li>
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <h4 className="font-medium">Supported Events</h4>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
+              <li>charge.completed — Payment successfully processed</li>
+              <li>charge.failed — Payment declined or failed</li>
+              <li>charge.captured — Hold amount captured</li>
+              <li>charge.refunded — Payment refunded</li>
+              <li>hold.authorized — Hold successfully authorized</li>
+              <li>hold.captured — Hold amount captured</li>
+              <li>3ds.completed — 3D Secure authentication completed</li>
             </ul>
           </div>
 
-          <div>
-            <h4 className="font-semibold mb-1">Webhook Payload Format</h4>
-            <div className="bg-muted p-3 rounded-md font-mono text-xs">
+          <div className="flex flex-col gap-3">
+            <h4 className="font-medium">Webhook Payload Format</h4>
+            <div className="bg-muted/60 rounded-2xl p-4 font-mono text-xs overflow-auto">
               {`{
   "event": "charge.completed",
   "data": {
@@ -334,10 +327,10 @@ export default function WebhookManagement() {
             </div>
           </div>
 
-          <div>
-            <h4 className="font-semibold mb-1">Local Storage</h4>
-            <p className="text-muted-foreground">
-              Webhook configurations are saved in your browser's local storage. They will persist across sessions but are not synced to the server. For production use, you should integrate with the backend webhook management API.
+          <div className="flex flex-col gap-2">
+            <h4 className="font-medium">Local Storage</h4>
+            <p className="text-sm text-muted-foreground">
+              Webhook configurations are saved in your browser's local storage. They will persist across sessions but are not synced to the server. For production use, integrate with the backend webhook management API.
             </p>
           </div>
         </CardContent>

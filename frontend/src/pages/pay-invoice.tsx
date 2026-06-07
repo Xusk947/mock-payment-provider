@@ -73,7 +73,7 @@ export default function PayInvoicePage() {
     },
     onError: (err: any) => {
       if (err.transaction && err.message?.includes('3D Secure')) {
-        setError('3D Secure required. Redirecting...')
+        setError('3D Secure required. Redirecting…')
         setTimeout(() => navigate(`/3ds?transaction_id=${invoiceId}`), 1500)
         return
       }
@@ -104,33 +104,30 @@ export default function PayInvoicePage() {
   if (invoiceLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="space-y-4">
-          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
-          <div className="h-96 w-full max-w-md animate-pulse rounded bg-muted" />
+        <div className="flex flex-col gap-4 w-full max-w-md">
+          <div className="h-8 w-48 animate-pulse rounded-xl bg-muted" />
+          <div className="h-96 w-full animate-pulse rounded-2xl bg-muted" />
         </div>
       </div>
     )
   }
 
-  // Already paid
   if (invoice && invoice.status !== 'pending' && invoice.status !== 'authorized') {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl">Invoice Already Paid</CardTitle>
-            <CardDescription>
-              This invoice has already been processed.
-            </CardDescription>
+        <Card className="w-full max-w-md rounded-2xl border-border/60 shadow-xs">
+          <CardHeader className="text-center gap-2">
+            <CardTitle className="text-xl font-semibold tracking-tight">Invoice Already Paid</CardTitle>
+            <CardDescription>This invoice has already been processed.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 text-center">
-            <Badge variant={invoice.status === 'completed' ? 'default' : 'destructive'} className="text-sm">
+          <CardContent className="flex flex-col items-center gap-4">
+            <Badge variant={invoice.status === 'completed' ? 'default' : 'destructive'} className="rounded-full capitalize">
               {invoice.status}
             </Badge>
             <p className="text-muted-foreground">
               Transaction #{invoice.id} — {invoice.amount.toFixed(2)} {invoice.currency}
             </p>
-            <Button onClick={() => navigate(`/transactions/${invoice.id}`)}>
+            <Button onClick={() => navigate(`/transactions/${invoice.id}`)} className="rounded-full px-6">
               View Transaction
             </Button>
           </CardContent>
@@ -142,10 +139,10 @@ export default function PayInvoicePage() {
   if (success) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl text-green-600">Payment Successful</CardTitle>
-            <CardDescription>Redirecting to transaction details...</CardDescription>
+        <Card className="w-full max-w-md rounded-2xl border-border/60 shadow-xs">
+          <CardHeader className="text-center gap-2">
+            <CardTitle className="text-xl font-semibold tracking-tight text-primary">Payment Successful</CardTitle>
+            <CardDescription>Redirecting to transaction details…</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -153,80 +150,73 @@ export default function PayInvoicePage() {
   }
 
   return (
-    <div className="container mx-auto max-w-5xl py-8">
-      <div className="grid gap-8 lg:grid-cols-2">
+    <div className="max-w-5xl mx-auto">
+      <div className="grid gap-10 lg:grid-cols-2">
         {/* Left: Invoice Summary */}
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
-            <p className="text-sm text-muted-foreground">Review your order before payment</p>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-4xl font-semibold tracking-tight">Checkout</h1>
+            <p className="text-lg text-muted-foreground">Review your order before payment</p>
           </div>
 
           {invoice && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
+            <Card className="rounded-2xl border-border/60 shadow-xs">
+              <CardHeader className="gap-2">
+                <CardTitle className="text-xl font-semibold tracking-tight">Order Summary</CardTitle>
                 <CardDescription>Invoice #{invoice.id}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
+              <CardContent className="flex flex-col gap-6">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Description</span>
-                  <span className="font-medium">{invoice.metadata || 'Payment for services'}</span>
+                  <span className="font-medium text-right">{invoice.metadata || 'Payment for services'}</span>
                 </div>
-                <Separator />
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>{invoice.amount.toFixed(2)} {invoice.currency}</span>
+                <Separator className="bg-border/40" />
+                <div className="flex justify-between items-baseline">
+                  <span className="font-medium">Total due</span>
+                  <span className="text-2xl font-semibold tracking-tight">{invoice.amount.toFixed(2)} {invoice.currency}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span>0.00 {invoice.currency}</span>
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="rounded-full capitalize">
+                    {invoice.status}
+                  </Badge>
+                  {invoice.created_at && (
+                    <span className="text-xs text-muted-foreground">
+                      Created {format(new Date(invoice.created_at), 'MMM dd, yyyy')}
+                    </span>
+                  )}
                 </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="font-semibold">Total due</span>
-                  <span className="font-bold text-lg">{invoice.amount.toFixed(2)} {invoice.currency}</span>
-                </div>
-                <Badge variant="secondary" className="w-full justify-center capitalize">
-                  {invoice.status}
-                </Badge>
-                {invoice.created_at && (
-                  <p className="text-xs text-muted-foreground">
-                    Created {format(new Date(invoice.created_at), 'MMM dd, yyyy HH:mm')}
-                  </p>
-                )}
               </CardContent>
             </Card>
           )}
         </div>
 
         {/* Right: Payment Form */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pay with card</CardTitle>
+        <div className="flex flex-col gap-6">
+          <Card className="rounded-2xl border-border/60 shadow-xs">
+            <CardHeader className="gap-2">
+              <CardTitle className="text-xl font-semibold tracking-tight">Pay with card</CardTitle>
               <CardDescription>Enter your card details below</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="flex flex-col gap-8">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="rounded-2xl">
                   <AlertTitle>Payment Error</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               {/* Quick-fill test cards */}
-              <div className="space-y-2">
-                <Label className="text-xs uppercase text-muted-foreground">Quick fill (test cards)</Label>
+              <div className="flex flex-col gap-3">
+                <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Quick fill (test cards)</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {TEST_CARDS.map(card => (
+                  {TEST_CARDS.map((card) => (
                     <Button
                       key={card.number}
                       type="button"
                       variant={cardNumber === card.number ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => fillTestCard(card)}
-                      className="h-auto justify-start py-2 text-left text-xs"
+                      className="h-auto justify-start py-2.5 px-3 text-left text-xs rounded-xl"
                     >
                       <span className="block font-medium">{card.name}</span>
                       <span className="block text-[10px] text-muted-foreground">•••• {card.number.slice(-4)}</span>
@@ -235,38 +225,39 @@ export default function PayInvoicePage() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="card-number">Card number</Label>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="card-number" className="text-sm font-medium">Card number</Label>
                   <Input
                     id="card-number"
                     value={cardNumber}
                     onChange={(e) => setCardNumber(e.target.value)}
                     placeholder="0000 0000 0000 0000"
-                    className="font-mono"
+                    className="rounded-xl font-mono"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cardholder-name">Cardholder name</Label>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="cardholder-name" className="text-sm font-medium">Cardholder name</Label>
                   <Input
                     id="cardholder-name"
                     value={cardholderName}
                     onChange={(e) => setCardholderName(e.target.value)}
                     placeholder="Full name on card"
+                    className="rounded-xl"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Expiry (MM / YY)</Label>
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-medium">Expiry (MM / YY)</Label>
                     <div className="flex gap-2">
                       <Input
                         id="expiry-month"
                         value={expiryMonth}
                         onChange={(e) => setExpiryMonth(e.target.value)}
                         placeholder="MM"
-                        className="text-center"
+                        className="rounded-xl text-center"
                         maxLength={2}
                       />
                       <Input
@@ -274,33 +265,33 @@ export default function PayInvoicePage() {
                         value={expiryYear}
                         onChange={(e) => setExpiryYear(e.target.value)}
                         placeholder="YYYY"
-                        className="text-center"
+                        className="rounded-xl text-center"
                         maxLength={4}
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cvv">CVC</Label>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="cvv" className="text-sm font-medium">CVC</Label>
                     <Input
                       id="cvv"
                       value={cvv}
                       onChange={(e) => setCvv(e.target.value)}
                       placeholder="123"
-                      className="text-center"
+                      className="rounded-xl text-center"
                       maxLength={4}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Card type</Label>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium">Card type</Label>
                   <div className="flex gap-2">
-                    {(['visa', 'mastercard', 'amex'] as const).map(type => (
+                    {(['visa', 'mastercard', 'amex'] as const).map((type) => (
                       <Button
                         key={type}
                         type="button"
                         variant={cardType === type ? 'default' : 'outline'}
-                        className="flex-1 capitalize"
+                        className="flex-1 rounded-full capitalize"
                         onClick={() => setCardType(type)}
                       >
                         {type}
@@ -309,17 +300,17 @@ export default function PayInvoicePage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Payment scenario</Label>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium">Payment scenario</Label>
                   <Select value={scenario} onValueChange={(val) => setScenario(val ?? '')}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Random (default)" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Random (default)</SelectItem>
                       <SelectItem value="success">Success</SelectItem>
                       {scenariosLoading ? (
-                        <SelectItem value="" disabled>Loading scenarios...</SelectItem>
+                        <SelectItem value="" disabled>Loading scenarios…</SelectItem>
                       ) : (
                         scenarios?.map((s) => (
                           <SelectItem key={s.name} value={s.name}>
@@ -335,11 +326,11 @@ export default function PayInvoicePage() {
                 <Button
                   type="submit"
                   disabled={payMutation.isPending}
-                  className="w-full"
+                  className="w-full rounded-full"
                   size="lg"
                 >
                   {payMutation.isPending
-                    ? 'Processing...'
+                    ? 'Processing…'
                     : `Pay ${invoice?.amount?.toFixed(2) || ''} ${invoice?.currency || ''}`}
                 </Button>
 

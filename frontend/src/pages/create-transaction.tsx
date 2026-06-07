@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { createInvoice } from '@/lib/api'
 
 export default function CreateTransactionPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [amount, setAmount] = useState('100.00')
   const [currency, setCurrency] = useState('USD')
   const [description, setDescription] = useState('')
@@ -26,7 +27,9 @@ export default function CreateTransactionPage() {
     },
     onSuccess: (data: any) => {
       setCreatedInvoice(data)
-      setNotification({ type: 'success', message: 'Invoice created successfully!' })
+      setNotification({ type: 'success', message: 'Invoice created successfully' })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
     },
     onError: (err: any) => {
       setNotification({ type: 'error', message: err.message || 'Failed to create invoice' })
@@ -40,29 +43,29 @@ export default function CreateTransactionPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Create Invoice</h1>
-        <p className="text-muted-foreground">Generate a payment invoice for your customer</p>
+    <div className="max-w-xl mx-auto flex flex-col gap-10">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-semibold tracking-tight">Create Invoice</h1>
+        <p className="text-lg text-muted-foreground">Generate a payment invoice for your customer</p>
       </div>
 
       {notification && (
-        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'}>
+        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'} className="rounded-2xl">
           <AlertTitle>{notification.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
           <AlertDescription>{notification.message}</AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoice Details</CardTitle>
+      <Card className="rounded-2xl border-border/60 shadow-xs">
+        <CardHeader className="gap-2">
+          <CardTitle className="text-xl font-semibold tracking-tight">Invoice Details</CardTitle>
           <CardDescription>Enter the payment amount and currency</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="amount">Amount</Label>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="amount" className="text-sm font-medium">Amount</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -71,35 +74,38 @@ export default function CreateTransactionPage() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="100.00"
+                  className="rounded-xl"
                 />
               </div>
-              <div>
-                <Label htmlFor="currency">Currency</Label>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="currency" className="text-sm font-medium">Currency</Label>
                 <Input
                   id="currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                   placeholder="USD"
                   maxLength={3}
+                  className="rounded-xl"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="description">Description (optional)</Label>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="description" className="text-sm font-medium">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Subscription payment"
+                className="rounded-xl"
               />
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={invoiceMutation.isPending}>
-                {invoiceMutation.isPending ? 'Creating...' : 'Create Invoice'}
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" disabled={invoiceMutation.isPending} className="rounded-full px-6">
+                {invoiceMutation.isPending ? 'Creating…' : 'Create Invoice'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate('/transactions')}>
+              <Button type="button" variant="ghost" onClick={() => navigate('/transactions')} className="rounded-full px-6">
                 Cancel
               </Button>
             </div>
@@ -107,39 +113,38 @@ export default function CreateTransactionPage() {
         </CardContent>
       </Card>
 
-      {/* Invoice Created Result */}
       {createdInvoice && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Created</CardTitle>
+        <Card className="rounded-2xl border-border/60 shadow-xs">
+          <CardHeader className="gap-2">
+            <CardTitle className="text-xl font-semibold tracking-tight">Invoice Created</CardTitle>
             <CardDescription>Share this payment link with your customer</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+          <CardContent className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex flex-col gap-1">
                 <span className="text-muted-foreground">Invoice ID</span>
                 <span className="font-medium">#{createdInvoice.transaction.id}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex flex-col gap-1">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="font-medium">{createdInvoice.transaction.amount} {createdInvoice.transaction.currency}</span>
               </div>
             </div>
 
-            <div className="p-3 bg-muted rounded-md space-y-2">
-              <Label className="text-xs text-muted-foreground">Payment Link</Label>
+            <div className="flex flex-col gap-2 p-4 bg-muted/60 rounded-2xl">
+              <Label className="text-xs text-muted-foreground font-medium">Payment Link</Label>
               <div className="flex gap-2">
                 <Input
                   readOnly
                   value={`${window.location.origin}${createdInvoice.payment_url}`}
-                  className="text-sm"
+                  className="rounded-xl text-sm bg-background"
                 />
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="secondary"
+                  className="rounded-full shrink-0"
                   onClick={() => {
                     navigator.clipboard.writeText(`${window.location.origin}${createdInvoice.payment_url}`)
-                    setNotification({ type: 'success', message: 'Link copied to clipboard!' })
+                    setNotification({ type: 'success', message: 'Link copied to clipboard' })
                     setTimeout(() => setNotification(null), 3000)
                   }}
                 >
@@ -148,16 +153,20 @@ export default function CreateTransactionPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={() => navigate(createdInvoice.payment_url)}>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate(createdInvoice.payment_url)} className="rounded-full px-6">
                 Open Payment Page
               </Button>
-              <Button variant="outline" onClick={() => {
-                setCreatedInvoice(null)
-                setAmount('100.00')
-                setCurrency('USD')
-                setDescription('')
-              }}>
+              <Button
+                variant="ghost"
+                className="rounded-full px-6"
+                onClick={() => {
+                  setCreatedInvoice(null)
+                  setAmount('100.00')
+                  setCurrency('USD')
+                  setDescription('')
+                }}
+              >
                 Create Another
               </Button>
             </div>

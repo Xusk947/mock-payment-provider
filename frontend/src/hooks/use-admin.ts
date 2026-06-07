@@ -20,6 +20,8 @@ export function useDashboardStats() {
   return useQuery<DashboardStats>({
     queryKey: ['dashboard-stats'],
     queryFn: async () => adminApi.adminDashboardGet() as Promise<DashboardStats>,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   })
 }
 

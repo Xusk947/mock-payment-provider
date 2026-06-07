@@ -8,6 +8,8 @@ export function useTransactions() {
   return useQuery<Transaction[]>({
     queryKey: ['transactions'],
     queryFn: async () => paymentsApi.apiV1TransactionsGet() as Promise<Transaction[]>,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   })
 }
 

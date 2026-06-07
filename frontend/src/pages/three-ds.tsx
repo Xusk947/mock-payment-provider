@@ -31,7 +31,6 @@ export default function ThreeDSPage() {
     },
     onSuccess: (data: any) => {
       if (data.success) {
-        // Redirect back to payment page after successful 3DS
         navigate(`/pay/${transactionId}`)
       }
     },
@@ -47,32 +46,29 @@ export default function ThreeDSPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+        <div className="h-8 w-48 animate-pulse rounded-xl bg-muted" />
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto max-w-md py-12">
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle>3D Secure Authentication</CardTitle>
-          <CardDescription>
-            Please authenticate this transaction to proceed
-          </CardDescription>
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Card className="w-full max-w-md rounded-2xl border-border/60 shadow-xs">
+        <CardHeader className="text-center gap-2">
+          <CardTitle className="text-2xl font-semibold tracking-tight">3D Secure Authentication</CardTitle>
+          <CardDescription>Please authenticate this transaction to proceed</CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Transaction Details */}
+        <CardContent className="flex flex-col gap-8">
           {transaction && (
-            <div className="space-y-2 text-sm">
+            <div className="flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Transaction</span>
                 <span className="font-mono">#{transactionId}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount</span>
-                <span className="font-bold">
+                <span className="font-semibold">
                   {transaction.amount?.toFixed(2)} {transaction.currency}
                 </span>
               </div>
@@ -80,40 +76,38 @@ export default function ThreeDSPage() {
                 <span className="text-muted-foreground">Merchant</span>
                 <span>Test Merchant</span>
               </div>
-              <Separator />
+              <Separator className="bg-border/40" />
             </div>
           )}
 
-          <Alert>
-            <AlertTitle>Authentication Required</AlertTitle>
-            <AlertDescription>
-              Your bank requires additional verification for this transaction.
-            </AlertDescription>
+          <Alert className="rounded-2xl bg-muted/40 border-0">
+            <AlertTitle className="font-medium">Authentication Required</AlertTitle>
+            <AlertDescription>Your bank requires additional verification for this transaction.</AlertDescription>
           </Alert>
 
           {authError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="rounded-2xl">
               <AlertTitle>Authentication Failed</AlertTitle>
               <AlertDescription>{authError}</AlertDescription>
             </Alert>
           )}
 
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <Button
-              className="w-full"
+              className="w-full rounded-full"
               size="lg"
               onClick={() => authenticateMutation.mutate()}
               disabled={authenticateMutation.isPending || txId <= 0}
             >
-              {authenticateMutation.isPending ? 'Authenticating...' : 'Authenticate Now'}
+              {authenticateMutation.isPending ? 'Authenticating…' : 'Authenticate Now'}
             </Button>
 
-            <Button variant="ghost" className="w-full" onClick={handleCancel}>
+            <Button variant="ghost" className="w-full rounded-full" onClick={handleCancel}>
               Cancel Transaction
             </Button>
           </div>
 
-          <div className="space-y-1 text-center text-xs text-muted-foreground">
+          <div className="flex flex-col gap-1 text-center text-xs text-muted-foreground">
             <p>Your information is protected with bank-level security</p>
             <p>Authentication expires in 10 minutes</p>
           </div>

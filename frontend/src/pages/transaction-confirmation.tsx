@@ -57,101 +57,93 @@ export default function TransactionConfirmationPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={handleCancel}>
-          Cancel
-        </Button>
-      </div>
+    <div className="max-w-2xl mx-auto flex flex-col gap-8">
+      <Button variant="ghost" className="self-start rounded-full px-4" onClick={handleCancel}>
+        Cancel
+      </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Confirm Transaction</CardTitle>
-          <CardDescription>
-            Review and confirm transaction #{id} with error simulation
-          </CardDescription>
+      <Card className="rounded-2xl border-border/60 shadow-xs">
+        <CardHeader className="gap-2">
+          <CardTitle className="text-2xl font-semibold tracking-tight">Confirm Transaction</CardTitle>
+          <CardDescription>Review and confirm transaction #{id} with error simulation</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Transaction Summary */}
-          <Alert>
-            <AlertTitle>Transaction Summary</AlertTitle>
+        <CardContent className="flex flex-col gap-8">
+          <Alert className="rounded-2xl bg-muted/40 border-0">
+            <AlertTitle className="font-medium">Transaction Summary</AlertTitle>
             <AlertDescription>
-              Amount: $100.00 USD • Card: ••••1111 (Visa)
+              Amount: $100.00 USD · Card: ••••1111 (Visa)
             </AlertDescription>
           </Alert>
 
-          {/* Error Scenario Selection */}
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2">Error Scenario</label>
-              <Tabs defaultValue="success" value={selectedScenario} onValueChange={setSelectedScenario}>
-                <TabsList className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {ERROR_SCENARIOS.map((scenario) => (
-                    <TabsTrigger key={scenario.id} value={scenario.name}>
-                      {scenario.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+          <div className="flex flex-col gap-4">
+            <label className="text-sm font-medium">Error Scenario</label>
+            <Tabs defaultValue="success" value={selectedScenario} onValueChange={setSelectedScenario}>
+              <TabsList className="grid grid-cols-2 lg:grid-cols-3 gap-1 rounded-2xl p-1 bg-muted/60 h-auto">
+                {ERROR_SCENARIOS.map((scenario) => (
+                  <TabsTrigger
+                    key={scenario.id}
+                    value={scenario.name}
+                    className="rounded-xl py-2.5 text-sm data-[state=active]:shadow-xs"
+                  >
+                    {scenario.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-                <TabsContent value={selectedScenario}>
-                  {ERROR_SCENARIOS.map((scenario) => {
-                    if (scenario.name !== selectedScenario) return null
-                    return (
-                      <div key={scenario.id} className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold">{scenario.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Error Code: <span className="font-mono">{scenario.error_code || 'None'}</span>
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {scenario.error_message || 'Transaction will succeed'}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Probability: {scenario.probability}%
-                          </p>
-                        </div>
+              <TabsContent value={selectedScenario} className="mt-4">
+                {ERROR_SCENARIOS.map((scenario) => {
+                  if (scenario.name !== selectedScenario) return null
+                  return (
+                    <div key={scenario.id} className="flex flex-col gap-2 p-4 rounded-2xl bg-muted/40 text-sm">
+                      <span className="font-medium">{scenario.name}</span>
+                      <div className="flex flex-col gap-1 text-muted-foreground">
+                        <p>Error Code: <span className="font-mono text-foreground">{scenario.error_code || 'None'}</span></p>
+                        <p>{scenario.error_message || 'Transaction will succeed'}</p>
+                        <p>Probability: {scenario.probability}%</p>
                       </div>
-                    )
-                  })}
-                </TabsContent>
-              </Tabs>
-            </div>
+                    </div>
+                  )
+                })}
+              </TabsContent>
+            </Tabs>
+          </div>
 
-            {/* Error Examples */}
-            <div className="bg-muted p-4 rounded-md">
-              <h4 className="font-semibold mb-2">Error Examples:</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="font-mono">DECLINED:</span>
-                  <span className="text-muted-foreground">Generic card decline</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-mono">INSUFFICIENT_FUNDS:</span>
-                  <span className="text-muted-foreground">Not enough balance</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-mono">INVALID_CVV:</span>
-                  <span className="text-muted-foreground">CVV validation failed</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-mono">3DS_REQUIRED:</span>
-                  <span className="text-muted-foreground">3D Secure needed</span>
-                </div>
+          <div className="flex flex-col gap-3 p-4 rounded-2xl bg-muted/40 text-sm">
+            <span className="font-medium">Error Examples</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-muted-foreground">
+              <div className="flex justify-between">
+                <span className="font-mono text-xs text-foreground">DECLINED</span>
+                <span>Generic card decline</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-mono text-xs text-foreground">INSUFFICIENT_FUNDS</span>
+                <span>Not enough balance</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-mono text-xs text-foreground">INVALID_CVV</span>
+                <span>CVV validation failed</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-mono text-xs text-foreground">3DS_REQUIRED</span>
+                <span>3D Secure needed</span>
               </div>
             </div>
+          </div>
 
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button onClick={handleConfirm} disabled={confirmMutation.isPending || rejectMutation.isPending}>
-                {confirmMutation.isPending || rejectMutation.isPending ? 'Processing...' : 'Confirm Transaction'}
-              </Button>
-              <Button variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending}>
-                Reject Transaction
-              </Button>
-              <Button variant="outline" onClick={handleCancel}>
-                Cancel
-              </Button>
-            </div>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button
+              onClick={handleConfirm}
+              disabled={confirmMutation.isPending || rejectMutation.isPending}
+              className="rounded-full px-6"
+            >
+              {confirmMutation.isPending || rejectMutation.isPending ? 'Processing…' : 'Confirm Transaction'}
+            </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejectMutation.isPending} className="rounded-full px-6">
+              Reject Transaction
+            </Button>
+            <Button variant="ghost" onClick={handleCancel} className="rounded-full px-6">
+              Cancel
+            </Button>
           </div>
         </CardContent>
       </Card>

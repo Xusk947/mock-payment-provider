@@ -72,202 +72,182 @@ export default function TransactionDetailPage() {
     onError: handleError,
   })
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-      case 'captured':
-        return 'bg-green-500'
-      case 'pending':
-      case 'authorized':
-        return 'bg-yellow-500'
-      case 'failed':
-        return 'bg-red-500'
-      case 'refunded':
-        return 'bg-blue-500'
-      default:
-        return 'bg-gray-500'
-    }
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex flex-col gap-4 w-full max-w-lg">
+          <div className="h-8 w-48 animate-pulse rounded-xl bg-muted" />
+          <div className="h-64 w-full animate-pulse rounded-2xl bg-muted" />
+        </div>
+      </div>
+    )
   }
-
-  if (isLoading) return <div className="flex items-center justify-center h-screen">Loading...</div>
 
   if (error || !transaction) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Alert variant="destructive">
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Alert variant="destructive" className="max-w-md rounded-2xl">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            {error?.message || 'Transaction not found'}
-          </AlertDescription>
+          <AlertDescription>{error?.message || 'Transaction not found'}</AlertDescription>
         </Alert>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <Button variant="outline" onClick={() => navigate('/transactions')}>
-        &larr; Back to Transactions
+    <div className="flex flex-col gap-8">
+      <Button variant="ghost" className="self-start rounded-full px-4" onClick={() => navigate('/transactions')}>
+        ← Back to Transactions
       </Button>
 
       {notification && (
-        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'}>
+        <Alert variant={notification.type === 'error' ? 'destructive' : 'default'} className="rounded-2xl">
           <AlertTitle>{notification.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
           <AlertDescription>{notification.message}</AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle>Transaction Details</CardTitle>
+      <Card className="rounded-2xl border-border/60 shadow-xs">
+        <CardHeader className="gap-2">
+          <div className="flex items-start justify-between">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-xl font-semibold tracking-tight">Transaction Details</CardTitle>
               <CardDescription>
-                Transaction #{transaction.id} &bull; {format(new Date(transaction.created_at), 'PPP')}
+                Transaction #{transaction.id} · {format(new Date(transaction.created_at), 'PPP')}
               </CardDescription>
             </div>
-            <Badge variant={transaction.status === 'completed' ? 'default' : 'destructive'}>
+            <Badge variant={transaction.status === 'completed' ? 'default' : 'destructive'} className="rounded-full capitalize">
               {transaction.status}
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex flex-col gap-8">
           {/* Basic Information */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Amount</label>
-                <p className="text-2xl font-bold">
-                  {transaction.amount.toFixed(2)} {transaction.currency}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Authorization Code</label>
-                <p className="font-mono text-sm">
-                  {transaction.authorization_code || 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="text font-medium">Payment Method</label>
-                <p className="capitalize">{transaction.payment_method}</p>
-              </div>
-              <div>
-                <label className="text font-medium">Card Type</label>
-                <p className="capitalize">{transaction.card_type || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text font-medium">Last 4 Digits</label>
-                <p className="font-mono">&bull;&bull;&bull;&bull;{transaction.card_number_last4 || 'N/A'}</p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Amount</span>
+              <p className="text-3xl font-semibold tracking-tight">
+                {transaction.amount.toFixed(2)} {transaction.currency}
+              </p>
             </div>
-
-            <Separator />
-
-            {/* Transaction Status */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(transaction.status)}`} />
-                <span className="text-sm font-medium capitalize">{transaction.status}</span>
-              </div>
-
-              {transaction.error_code && (
-                <Alert variant="destructive">
-                  <AlertTitle>{transaction.error_code}</AlertTitle>
-                  <AlertDescription>{transaction.error_message}</AlertDescription>
-                </Alert>
-              )}
-
-              {transaction.three_ds_required && !transaction.three_ds_authenticated && (
-                <Alert>
-                  <AlertTitle>3D Secure Required</AlertTitle>
-                  <AlertDescription>
-                    This transaction requires 3D Secure authentication.
-                    <div className="mt-2">
-                      <Link to="/3ds">
-                        <Button variant="outline" size="sm">
-                          Go to 3D Secure
-                        </Button>
-                      </Link>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Authorization Code</span>
+              <p className="font-mono text-sm">{transaction.authorization_code || '—'}</p>
             </div>
-
-            <Separator />
-
-            {/* Financial Details */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Financial Details</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Amount Captured</label>
-                  <p className="text-xl font-semibold">
-                    {transaction.amount_captured ? `${transaction.amount_captured.toFixed(2)} ${transaction.currency}` : '0.00'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Amount Refunded</label>
-                  <p className="text-xl font-semibold">
-                    {transaction.amount_refunded ? `${transaction.amount_refunded.toFixed(2)} ${transaction.currency}` : '0.00'}
-                  </p>
-                </div>
-              </div>
-
-              {transaction.expires_at && (
-                <div>
-                  <label className="text-sm font-medium">Hold Expires At</label>
-                  <p>{format(new Date(transaction.expires_at), 'PPP')}</p>
-                </div>
-              )}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Payment Method</span>
+              <p className="capitalize font-medium">{transaction.payment_method}</p>
             </div>
-
-            <Separator />
-
-            {/* Timeline */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Timeline</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground">Created:</span>
-                  <span>{format(new Date(transaction.created_at), 'PPP')}</span>
-                </div>
-                {transaction.updated_at && (
-                  <div className="flex gap-2">
-                    <span className="text-muted-foreground">Last Updated:</span>
-                    <span>{format(new Date(transaction.updated_at), 'PPP')}</span>
-                  </div>
-                )}
-              </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Card Type</span>
+              <p className="capitalize font-medium">{transaction.card_type || 'N/A'}</p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Last 4 Digits</span>
+              <p className="font-mono">••••{transaction.card_number_last4 || 'N/A'}</p>
             </div>
           </div>
 
+          <Separator className="bg-border/40" />
+
+          {/* Alerts */}
+          <div className="flex flex-col gap-4">
+            {transaction.error_code && (
+              <Alert variant="destructive" className="rounded-2xl">
+                <AlertTitle>{transaction.error_code}</AlertTitle>
+                <AlertDescription>{transaction.error_message}</AlertDescription>
+              </Alert>
+            )}
+
+            {transaction.three_ds_required && !transaction.three_ds_authenticated && (
+              <Alert className="rounded-2xl">
+                <AlertTitle>3D Secure Required</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  <span>This transaction requires 3D Secure authentication.</span>
+                  <Link to="/3ds">
+                    <Button variant="outline" size="sm" className="rounded-full self-start">
+                      Go to 3D Secure
+                    </Button>
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <Separator className="bg-border/40" />
+
+          {/* Financial Details */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold tracking-tight">Financial Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground">Amount Captured</span>
+                <p className="text-xl font-semibold">
+                  {transaction.amount_captured ? `${transaction.amount_captured.toFixed(2)} ${transaction.currency}` : '0.00'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground">Amount Refunded</span>
+                <p className="text-xl font-semibold">
+                  {transaction.amount_refunded ? `${transaction.amount_refunded.toFixed(2)} ${transaction.currency}` : '0.00'}
+                </p>
+              </div>
+            </div>
+            {transaction.expires_at && (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground">Hold Expires At</span>
+                <p className="font-medium">{format(new Date(transaction.expires_at), 'PPP')}</p>
+              </div>
+            )}
+          </div>
+
+          <Separator className="bg-border/40" />
+
+          {/* Timeline */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold tracking-tight">Timeline</h3>
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex gap-2">
+                <span className="text-muted-foreground w-28 shrink-0">Created</span>
+                <span className="font-medium">{format(new Date(transaction.created_at), 'PPP')}</span>
+              </div>
+              {transaction.updated_at && (
+                <div className="flex gap-2">
+                  <span className="text-muted-foreground w-28 shrink-0">Last Updated</span>
+                  <span className="font-medium">{format(new Date(transaction.updated_at), 'PPP')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator className="bg-border/40" />
+
           {/* Actions */}
           {transaction.status === 'pending' && (
-            <div className="flex gap-2">
-              <Button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
-                {confirmMutation.isPending ? 'Confirming...' : 'Confirm Transaction'}
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending} className="rounded-full px-6">
+                {confirmMutation.isPending ? 'Confirming…' : 'Confirm Transaction'}
               </Button>
-              <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
-                {rejectMutation.isPending ? 'Rejecting...' : 'Reject Transaction'}
+              <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending} className="rounded-full px-6">
+                {rejectMutation.isPending ? 'Rejecting…' : 'Reject Transaction'}
               </Button>
             </div>
           )}
 
           {transaction.status === 'authorized' && (
-            <div className="flex gap-2">
-              <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending}>
-                {rejectMutation.isPending ? 'Rejecting...' : 'Reject Transaction'}
+            <div className="flex flex-wrap gap-3">
+              <Button variant="destructive" onClick={() => rejectMutation.mutate()} disabled={rejectMutation.isPending} className="rounded-full px-6">
+                {rejectMutation.isPending ? 'Rejecting…' : 'Reject Transaction'}
               </Button>
-              <Button onClick={() => captureMutation.mutate()} disabled={captureMutation.isPending}>
-                {captureMutation.isPending ? 'Capturing...' : 'Capture Amount'}
+              <Button onClick={() => captureMutation.mutate()} disabled={captureMutation.isPending} className="rounded-full px-6">
+                {captureMutation.isPending ? 'Capturing…' : 'Capture Amount'}
               </Button>
             </div>
           )}
 
           {(transaction.status === 'completed' || transaction.status === 'captured') && (
-            <Button variant="outline" onClick={() => refundMutation.mutate()} disabled={refundMutation.isPending}>
-              {refundMutation.isPending ? 'Refunding...' : 'Issue Refund'}
+            <Button variant="outline" onClick={() => refundMutation.mutate()} disabled={refundMutation.isPending} className="rounded-full px-6 self-start">
+              {refundMutation.isPending ? 'Refunding…' : 'Issue Refund'}
             </Button>
           )}
         </CardContent>
