@@ -43,9 +43,9 @@ jobs:
       run: go test ./... -v -coverprofile=coverage.out -short
 
     - name: Upload coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.out
+        files: ./coverage.out
         fail_ci_if_error: false
 
   e2e-test:
@@ -135,7 +135,7 @@ jobs:
           type=sha
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         file: ./Dockerfile
@@ -176,12 +176,12 @@ jobs:
       run: ~/go/bin/swag init -g cmd/server/main.go --output cmd/server/docs
 
     - name: Run Gosec Security Scanner
-      uses: securego/gosec@master
+      uses: securego/gosec@v2.22.1
       with:
         args: -exclude-dir=sqlc ./...
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@0.29.0
       with:
         scan-type: 'fs'
         scan-ref: '.'
@@ -206,7 +206,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Build Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         file: ./Dockerfile
