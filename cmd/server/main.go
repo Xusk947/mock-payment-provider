@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"log"
+	"mime"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -155,7 +157,7 @@ func main() {
 	app.Get("/*", func(c fiber.Ctx) error {
 		p := c.Path()
 
-		// Skip API routes (exact matches have priority, but this is a safety net)
+		// API routes are handled by earlier registrations; this is a safety net
 		if strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/admin/") || p == "/swagger" || p == "/swagger.json" {
 			return c.Status(404).SendString("not found")
 		}
@@ -173,34 +175,24 @@ func main() {
 			if err != nil {
 				return c.Status(404).SendString("not found")
 			}
+			filePath = "index.html"
 		}
 
-		// Set content type based on extension
-		ext := path.Ext(filePath)
-		switch ext {
-		case ".js", ".mjs":
-			c.Set("Content-Type", "application/javascript")
-		case ".css":
-			c.Set("Content-Type", "text/css")
-		case ".html":
-			c.Set("Content-Type", "text/html; charset=utf-8")
-		case ".json":
-			c.Set("Content-Type", "application/json")
-		case ".svg":
-			c.Set("Content-Type", "image/svg+xml")
-		case ".png":
-			c.Set("Content-Type", "image/png")
-		case ".jpg", ".jpeg":
-			c.Set("Content-Type", "image/jpeg")
-		case ".woff2":
-			c.Set("Content-Type", "font/woff2")
-		case ".woff":
-			c.Set("Content-Type", "font/woff")
-		case ".ttf":
-			c.Set("Content-Type", "font/ttf")
-		default:
-			c.Set("Content-Type", "application/octet-stream")
+		// Auto-detect content type via standard library
+		contentType := mime.TypeByExtension(path.Ext(filePath))
+		if contentType == "" {
+			contentType = http.DetectContentType(data)
 		}
+		c.Set("Content-Type", contentType)
+
+		// Cache hashed assets (Vite adds content hash to filename) for 1 year
+		// e.g. index-ABC123.js, assets/logo-XYZ789.png
+		if strings.Contains(filePath, "-") && (strings.HasSuffix(filePath, ".js") || strings.HasSuffix(filePath, ".css") || strings.HasSuffix(filePath, ".woff2")) {
+			c.Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else if filePath != "index.html" {
+			c.Set("Cache-Control", "public, max-age=86400")
+		}
+		// index.html is never cached (SPA fallback must be fresh)
 
 		return c.Send(data)
 	})
