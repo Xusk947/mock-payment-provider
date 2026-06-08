@@ -5,11 +5,13 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
+# Enable corepack and pin pnpm to v10.x (v11 breaks on Node 20 Alpine)
+RUN corepack enable && corepack prepare pnpm@10.9.0 --activate
+
 # Copy package files
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 
-# Install pnpm and dependencies (cache mount speeds up repeated installs)
-RUN npm install -g pnpm
+# Install dependencies (cache mount speeds up repeated installs)
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
