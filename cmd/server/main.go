@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/pressly/goose/v3"
+	"github.com/xusk947/mock-payment-provider/api/migrations"
 	"github.com/xusk947/mock-payment-provider/internal/handlers"
 	"github.com/xusk947/mock-payment-provider/internal/middleware"
 	"github.com/xusk947/mock-payment-provider/internal/repository"
@@ -69,6 +71,16 @@ func main() {
 		l.Fatal("Failed to initialize database", zap.Error(err))
 	}
 	defer db.Close()
+
+	// Run pending migrations
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		l.Fatal("Failed to set goose dialect", zap.Error(err))
+	}
+	if err := goose.Up(db.DB, "."); err != nil {
+		l.Fatal("Failed to run migrations", zap.Error(err))
+	}
+	l.Info("Migrations applied successfully")
 
 	l.Info("Database initialized successfully")
 
