@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Frontend
+frontend/node_modules/
+frontend/.gitignore
+
+# BUT include src/api/ (OpenAPI generated client needed for build)
+!frontend/src/api/
+
+# Build artifacts
+/server
+/main
+*.db
+*.db-shm
+*.db-wal
+/tmp/
+
+# IDE
+.idea/
+.vscode/
+
+# Tests
+coverage.out
