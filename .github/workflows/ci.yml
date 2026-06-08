@@ -25,6 +25,13 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
+    - name: Cache Go binaries
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin
+        key: go-bin-${{ env.GO_VERSION }}-${{ hashFiles('go.mod') }}
+        restore-keys: go-bin-${{ env.GO_VERSION }}-
+
     - name: Install dependencies
       run: |
         go mod download
@@ -68,6 +75,13 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go binaries
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin
+        key: go-bin-${{ env.GO_VERSION }}-${{ hashFiles('go.mod') }}
+        restore-keys: go-bin-${{ env.GO_VERSION }}-
 
     - name: Install dependencies
       run: |
@@ -162,6 +176,20 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
+    - name: Cache Go binaries
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin
+        key: go-bin-${{ env.GO_VERSION }}-${{ hashFiles('go.mod') }}
+        restore-keys: go-bin-${{ env.GO_VERSION }}-
+
+    - name: Cache Trivy DB
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/trivy
+        key: trivy-db-${{ runner.os }}-${{ github.run_id }}
+        restore-keys: trivy-db-${{ runner.os }}-
+
     - name: Install dependencies
       run: |
         go mod download
@@ -212,6 +240,7 @@ jobs:
         file: ./Dockerfile
         load: true
         tags: ${{ env.IMAGE_NAME }}:test
+        cache-from: type=gha
 
     - name: Run standalone container
       run: |

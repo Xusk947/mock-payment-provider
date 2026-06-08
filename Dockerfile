@@ -8,8 +8,10 @@ WORKDIR /app
 # Copy package files
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+# Install pnpm and dependencies (cache mount speeds up repeated installs)
+RUN npm install -g pnpm
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy source code and build
 COPY frontend/ ./
