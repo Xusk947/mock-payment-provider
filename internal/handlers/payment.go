@@ -313,7 +313,7 @@ func (h *PaymentHandler) Authenticate3DS(c fiber.Ctx) error {
 	}
 
 	if tx.Status == string(models.StatusPending) {
-		tx, err = h.txService.Confirm(c.Context(), id)
+		tx, err = h.txService.Complete3DS(c.Context(), id)
 		if err != nil {
 			return serverError(c, err.Error())
 		}

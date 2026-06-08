@@ -2,7 +2,7 @@ import { createConfiguration, ServerConfiguration } from '@/api'
 import { AdminApi, PaymentsApi, WebhooksApi } from '@/api'
 import type { PromiseMiddleware } from '@/api/middleware'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 const apiKeyMiddleware: PromiseMiddleware = {
   pre: async (context) => {

@@ -1,8 +1,11 @@
 package main
 
 import (
-	_ "embed"
+	"embed"
 	"log"
+	"os"
+	"path"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/xusk947/mock-payment-provider/internal/handlers"
@@ -11,12 +14,14 @@ import (
 	"github.com/xusk947/mock-payment-provider/internal/services"
 	"github.com/xusk947/mock-payment-provider/pkg/database"
 	"github.com/xusk947/mock-payment-provider/pkg/logger"
-	"os"
 	"go.uber.org/zap"
 )
 
 //go:embed docs/swagger.json
 var swaggerJSON []byte
+
+//go:embed all:dist
+var distFS embed.FS
 
 const swaggerUIHTML = `<!DOCTYPE html>
 <html>
@@ -144,6 +149,60 @@ func main() {
 	app.Get("/swagger", func(c fiber.Ctx) error {
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(swaggerUIHTML)
+	})
+
+	// Static frontend files + SPA fallback
+	app.Get("/*", func(c fiber.Ctx) error {
+		p := c.Path()
+
+		// Skip API routes (exact matches have priority, but this is a safety net)
+		if strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/admin/") || p == "/swagger" || p == "/swagger.json" {
+			return c.Status(404).SendString("not found")
+		}
+
+		filePath := strings.TrimPrefix(p, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+
+		// Try to serve the requested file from embedded dist
+		data, err := distFS.ReadFile("dist/" + filePath)
+		if err != nil {
+			// SPA fallback — return index.html for React Router paths
+			data, err = distFS.ReadFile("dist/index.html")
+			if err != nil {
+				return c.Status(404).SendString("not found")
+			}
+		}
+
+		// Set content type based on extension
+		ext := path.Ext(filePath)
+		switch ext {
+		case ".js", ".mjs":
+			c.Set("Content-Type", "application/javascript")
+		case ".css":
+			c.Set("Content-Type", "text/css")
+		case ".html":
+			c.Set("Content-Type", "text/html; charset=utf-8")
+		case ".json":
+			c.Set("Content-Type", "application/json")
+		case ".svg":
+			c.Set("Content-Type", "image/svg+xml")
+		case ".png":
+			c.Set("Content-Type", "image/png")
+		case ".jpg", ".jpeg":
+			c.Set("Content-Type", "image/jpeg")
+		case ".woff2":
+			c.Set("Content-Type", "font/woff2")
+		case ".woff":
+			c.Set("Content-Type", "font/woff")
+		case ".ttf":
+			c.Set("Content-Type", "font/ttf")
+		default:
+			c.Set("Content-Type", "application/octet-stream")
+		}
+
+		return c.Send(data)
 	})
 
 	// Start server

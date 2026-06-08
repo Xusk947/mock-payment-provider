@@ -59,6 +59,10 @@ frontend/src/api/
 .env.local
 .env.*.local
 
+# Embedded frontend build (populated at build time; README kept for go:embed)
+cmd/server/dist/*
+!cmd/server/dist/README.md
+
 # Generated swagger docs
 docs/docs.go
 docs/swagger.json

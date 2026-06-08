@@ -681,3 +681,68 @@ func TestPayInvoiceWithNonPendingStatusFails(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid invoice state")
 }
+
+func TestPayInvoiceWithoutScenarioMayFailRandomly(t *testing.T) {
+	svc, db := newTestTransactionService(t)
+	defer db.Close()
+	ctx := context.Background()
+
+	// Create invoice
+	invoice, err := svc.CreateInvoice(ctx, "test_key", 150, "USD", "")
+	require.NoError(t, err)
+
+	// Pay without explicit scenario - this may fail randomly due to error scenarios
+	// This test documents the issue where valid card data can be declined
+	// when no scenario is explicitly specified
+	result, err := svc.PayInvoice(ctx, int(invoice.ID), &models.ChargeRequest{
+		CardNumber:     "4111111111111111", // Success card
+		CardholderName: "John Doe",
+		CVV:            "123",
+		ExpiryMonth:    12,
+		ExpiryYear:     2030,
+		CardType:       "visa",
+		// No scenario specified - will use random error scenario
+	})
+
+	// The call should succeed, but the transaction status may vary
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Document that without explicit scenario, result is unpredictable
+	// It can be either completed or failed depending on random error scenario
+	assert.Contains(t, []string{"completed", "failed"}, result.Status)
+
+	if result.Status == "failed" {
+		// If failed, it should have an error code from random scenario
+		assert.True(t, result.ErrorCode.Valid)
+		t.Logf("Invoice payment failed with random scenario: %s - %s",
+			result.ErrorCode.String, result.ErrorMessage.String)
+	}
+}
+
+func TestPayInvoiceWithExplicitSuccessScenarioAlwaysSucceeds(t *testing.T) {
+	svc, db := newTestTransactionService(t)
+	defer db.Close()
+	ctx := context.Background()
+
+	// Create invoice
+	invoice, err := svc.CreateInvoice(ctx, "test_key", 200, "USD", "")
+	require.NoError(t, err)
+
+	// Pay with explicit success scenario - this should always succeed
+	result, err := svc.PayInvoice(ctx, int(invoice.ID), &models.ChargeRequest{
+		CardNumber:     "4111111111111111", // Success card
+		CardholderName: "John Doe",
+		CVV:            "123",
+		ExpiryMonth:    12,
+		ExpiryYear:     2030,
+		CardType:       "visa",
+		Scenario:       "success", // Explicit success scenario
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "completed", result.Status)
+	assert.False(t, result.ErrorCode.Valid)
+	assert.False(t, result.ErrorMessage.Valid)
+}
+

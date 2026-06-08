@@ -203,7 +203,11 @@ func (s *TransactionService) PayInvoice(ctx context.Context, id int, req *models
 		tx.ThreeDsRequired = sql.NullBool{Bool: true, Valid: true}
 		tx.CardNumberLast4 = sql.NullString{String: last4(req.CardNumber), Valid: true}
 		tx.CardType = sql.NullString{String: req.CardType, Valid: true}
-		_ = s.txRepo.UpdateStatus(ctx, id, string(models.StatusPending))
+		// Save the transaction with 3DS required flag to database
+		err := s.txRepo.UpdateFull(ctx, tx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update transaction for 3DS: %w", err)
+		}
 		return tx, ErrThreeDSRequired
 	}
 
@@ -418,6 +422,28 @@ func (s *TransactionService) Confirm(ctx context.Context, id int) (*db.Transacti
 		return nil, fmt.Errorf("failed to confirm transaction: %w", err)
 	}
 	tx.Status = string(models.StatusCompleted)
+	return tx, nil
+}
+
+// Complete3DS completes 3D Secure authentication for a transaction
+func (s *TransactionService) Complete3DS(ctx context.Context, id int) (*db.Transaction, error) {
+	tx, err := s.txRepo.Get(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrTransactionNotFound, err)
+	}
+	if !tx.ThreeDsRequired.Valid || !tx.ThreeDsRequired.Bool {
+		return nil, fmt.Errorf("3D Secure is not required for this transaction")
+	}
+	if tx.Status != string(models.StatusPending) {
+		return nil, ErrTransactionNotPending
+	}
+	// Mark 3DS as authenticated and complete the transaction
+	tx.ThreeDsAuthenticated = sql.NullBool{Bool: true, Valid: true}
+	tx.AuthorizationCode = sql.NullString{String: authCode(), Valid: true}
+	tx.Status = string(models.StatusCompleted)
+	if err := s.txRepo.UpdateFull(ctx, tx); err != nil {
+		return nil, fmt.Errorf("failed to complete 3DS authentication: %w", err)
+	}
 	return tx, nil
 }
 
