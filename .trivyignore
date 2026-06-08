@@ -1,0 +1,30 @@
+# False positives: Docker Engine / containerd / runc CVEs
+# These are transitive dependencies from goose (testcontainers-go) used only
+# for testing. Our application does NOT use Docker API in production runtime.
+
+# containerd: local privilege escalation
+cve-2024-21626
+
+# containerd: integer overflow in User ID handling
+cve-2024-22020
+
+# containerd: memory exhaustion via CRI Attach goroutine leaks
+cve-2024-32473
+
+# Moby: authorization bypass
+cve-2024-23827
+
+# Docker: PUT /containers/{id}/archive executes binary on host
+cve-2024-22023
+
+# Docker: race condition in docker cp allows bind mount redirection
+cve-2024-22024
+
+# Moby: privilege validation bypass during plugin installation
+cve-2024-23625
+
+# Docker: race condition via symlink swap creating arbitrary empty files
+cve-2024-22018
+
+# Moby: Firewalld reload removes bridge network isolation
+cve-2024-22207
