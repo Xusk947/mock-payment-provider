@@ -16,6 +16,7 @@ import (
 	"github.com/xusk947/mock-payment-provider/internal/middleware"
 	"github.com/xusk947/mock-payment-provider/internal/repository"
 	"github.com/xusk947/mock-payment-provider/internal/services"
+	"github.com/xusk947/mock-payment-provider/internal/utils"
 	"github.com/xusk947/mock-payment-provider/pkg/database"
 	"github.com/xusk947/mock-payment-provider/pkg/logger"
 	"go.uber.org/zap"
@@ -102,7 +103,8 @@ func main() {
 	)
 
 	// Initialize handlers
-	paymentHandler := handlers.NewPaymentHandler(txService, threeDSService, errorService)
+	urlConfig := utils.NewURLConfig()
+	paymentHandler := handlers.NewPaymentHandler(txService, threeDSService, errorService, urlConfig)
 	adminHandler := handlers.NewAdminHandler(merchantRepo, cardRepo, errorScenarioRepo, webhookRepo, txRepo)
 	webhookHandler := handlers.NewWebhookHandler(webhookRepo, merchantRepo)
 

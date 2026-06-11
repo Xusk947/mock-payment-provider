@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/xusk947/mock-payment-provider/internal/models"
 	"github.com/xusk947/mock-payment-provider/internal/services"
+	"github.com/xusk947/mock-payment-provider/internal/utils"
 )
 
 // PaymentHandler handles HTTP requests for payment operations
@@ -16,11 +17,12 @@ type PaymentHandler struct {
 	txService      *services.TransactionService
 	threeDSService *services.ThreeDSService
 	errorService   *services.ErrorScenarioService
+	urlConfig      *utils.URLConfig
 }
 
 // NewPaymentHandler creates a new payment handler
-func NewPaymentHandler(txService *services.TransactionService, threeDSService *services.ThreeDSService, errorService *services.ErrorScenarioService) *PaymentHandler {
-	return &PaymentHandler{txService: txService, threeDSService: threeDSService, errorService: errorService}
+func NewPaymentHandler(txService *services.TransactionService, threeDSService *services.ThreeDSService, errorService *services.ErrorScenarioService, urlConfig *utils.URLConfig) *PaymentHandler {
+	return &PaymentHandler{txService: txService, threeDSService: threeDSService, errorService: errorService, urlConfig: urlConfig}
 }
 
 // Charge handles POST /api/v1/charges
@@ -384,7 +386,7 @@ func (h *PaymentHandler) CreateInvoice(c fiber.Ctx) error {
 
 	return c.Status(201).JSON(fiber.Map{
 		"transaction": models.MapTransaction(tx),
-		"payment_url": fmt.Sprintf("/pay/%d", tx.ID),
+		"payment_url": h.urlConfig.GenerateCheckoutURL(int(tx.ID)),
 	})
 }
 
