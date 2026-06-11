@@ -44,10 +44,6 @@ func (s *WebhookService) SendWebhook(ctx context.Context, merchantID int, eventT
 		return fmt.Errorf("failed to get webhooks: %w", err)
 	}
 
-	if len(webhooks) == 0 {
-		return nil // No webhooks configured for this merchant
-	}
-
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal webhook payload: %w", err)
