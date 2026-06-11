@@ -30,6 +30,12 @@ type InvoiceRequest struct {
 	Metadata string  `json:"metadata,omitempty"`
 }
 
+// InvoiceResponse represents the response after creating an invoice.
+type InvoiceResponse struct {
+	Transaction *Transaction `json:"transaction"`
+	PaymentURL  string       `json:"payment_url"`
+}
+
 // PayInvoiceRequest represents a payment request for an existing invoice
 type PayInvoiceRequest struct {
 	CardNumber           string `json:"card_number"`

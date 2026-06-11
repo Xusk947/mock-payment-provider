@@ -53,6 +53,14 @@ func nullTimeValue(nt sql.NullTime) time.Time {
 	return time.Time{}
 }
 
+// NewInvoiceResponse builds a typed InvoiceResponse from a db.Transaction and a payment URL.
+func NewInvoiceResponse(dbTx *db.Transaction, paymentURL string) *InvoiceResponse {
+	return &InvoiceResponse{
+		Transaction: MapTransaction(dbTx),
+		PaymentURL:  paymentURL,
+	}
+}
+
 // MapTransaction converts a db.Transaction to models.Transaction
 func MapTransaction(dbTx *db.Transaction) *Transaction {
 	if dbTx == nil {

@@ -384,10 +384,7 @@ func (h *PaymentHandler) CreateInvoice(c fiber.Ctx) error {
 		return badRequest(c, err)
 	}
 
-	return c.Status(201).JSON(fiber.Map{
-		"transaction": models.MapTransaction(tx),
-		"payment_url": h.urlConfig.GenerateCheckoutURL(int(tx.ID)),
-	})
+	return c.Status(201).JSON(models.NewInvoiceResponse(tx, h.urlConfig.GenerateCheckoutURL(int(tx.ID))))
 }
 
 // PayInvoice handles POST /api/v1/invoices/:id/pay
