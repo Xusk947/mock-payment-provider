@@ -152,7 +152,7 @@ func newTestTransactionService(t *testing.T) (*TransactionService, *database.DB)
 	threeDSService := NewThreeDSService(false)
 	errorRepo := repository.NewErrorScenarioRepository(dbConn, dbConn.Queries)
 	errorService := NewErrorScenarioService(errorRepo)
-	webhookService := NewWebhookService(webhookRepo, webhookLogRepo)
+	webhookService := NewWebhookService(webhookRepo, webhookLogRepo, "")
 
 	svc := NewTransactionService(txRepo, merchantRepo, cardRepo, cardService, threeDSService, errorService, webhookService)
 	return svc, dbConn

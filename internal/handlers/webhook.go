@@ -13,15 +13,17 @@ import (
 
 // WebhookHandler handles HTTP requests for webhook management
 type WebhookHandler struct {
-	webhookRepo  *repository.WebhookRepository
-	merchantRepo *repository.MerchantRepository
+	webhookRepo       *repository.WebhookRepository
+	merchantRepo      *repository.MerchantRepository
+	defaultWebhookURL string
 }
 
 // NewWebhookHandler creates a new webhook handler
-func NewWebhookHandler(webhookRepo *repository.WebhookRepository, merchantRepo *repository.MerchantRepository) *WebhookHandler {
+func NewWebhookHandler(webhookRepo *repository.WebhookRepository, merchantRepo *repository.MerchantRepository, defaultWebhookURL string) *WebhookHandler {
 	return &WebhookHandler{
-		webhookRepo:  webhookRepo,
-		merchantRepo: merchantRepo,
+		webhookRepo:       webhookRepo,
+		merchantRepo:      merchantRepo,
+		defaultWebhookURL: defaultWebhookURL,
 	}
 }
 
@@ -52,7 +54,22 @@ func (h *WebhookHandler) List(c fiber.Ctx) error {
 		return serverError(c, "Failed to retrieve webhooks")
 	}
 
-	return c.JSON(models.MapWebhooks(webhooks))
+	result := models.MapWebhooks(webhooks)
+
+	// Include default webhook if configured
+	if h.defaultWebhookURL != "" {
+		defaultWebhook := models.Webhook{
+			ID:         -1,
+			MerchantID: int(merchant.ID),
+			URL:        h.defaultWebhookURL,
+			EventTypes: "[\"*\"]",
+			Active:     true,
+			IsDefault:  true,
+		}
+		result = append([]models.Webhook{defaultWebhook}, result...)
+	}
+
+	return c.JSON(result)
 }
 
 // Create handles POST /admin/webhooks

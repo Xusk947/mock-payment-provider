@@ -97,7 +97,8 @@ func main() {
 	cardService := services.NewCardValidationService(cardRepo)
 	threeDSService := services.NewThreeDSService(true)
 	errorService := services.NewErrorScenarioService(errorScenarioRepo)
-	webhookService := services.NewWebhookService(webhookRepo, webhookLogRepo)
+	defaultWebhookURL := os.Getenv("DEFAULT_WEBHOOK")
+	webhookService := services.NewWebhookService(webhookRepo, webhookLogRepo, defaultWebhookURL)
 	txService := services.NewTransactionService(
 		txRepo, merchantRepo, cardRepo, cardService, threeDSService, errorService, webhookService,
 	)
@@ -106,7 +107,7 @@ func main() {
 	urlConfig := utils.NewURLConfig()
 	paymentHandler := handlers.NewPaymentHandler(txService, threeDSService, errorService, urlConfig)
 	adminHandler := handlers.NewAdminHandler(merchantRepo, cardRepo, errorScenarioRepo, webhookRepo, txRepo)
-	webhookHandler := handlers.NewWebhookHandler(webhookRepo, merchantRepo)
+	webhookHandler := handlers.NewWebhookHandler(webhookRepo, merchantRepo, defaultWebhookURL)
 
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{

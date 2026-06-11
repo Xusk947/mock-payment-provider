@@ -109,6 +109,7 @@ type Webhook struct {
 	Active         bool      `json:"active"`
 	RetryAttempts  int       `json:"retry_attempts"`
 	TimeoutSeconds int       `json:"timeout_seconds"`
+	IsDefault      bool      `json:"is_default,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

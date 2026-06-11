@@ -18,6 +18,7 @@ interface Webhook {
   events: string[]
   active: boolean
   createdAt: string
+  isDefault?: boolean
 }
 
 const WEBHOOK_EVENTS = [
@@ -51,6 +52,7 @@ export default function WebhookManagement() {
     events: typeof w.event_types === 'string' ? JSON.parse(w.event_types || '[]') : w.event_types || [],
     active: w.active,
     createdAt: w.created_at,
+    isDefault: w.is_default || false,
   }))
 
   const createMutation = useMutation({
@@ -247,40 +249,51 @@ export default function WebhookManagement() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={webhook.active ? 'default' : 'secondary'} className="rounded-full">
-                          {webhook.active ? 'Active' : 'Inactive'}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={webhook.active ? 'default' : 'secondary'} className="rounded-full">
+                            {webhook.active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          {webhook.isDefault && (
+                            <Badge variant="outline" className="rounded-full text-xs">
+                              Default
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground">
-                        {format(new Date(webhook.createdAt), 'MMM dd, yyyy')}
+                        {webhook.isDefault ? '—' : format(new Date(webhook.createdAt), 'MMM dd, yyyy')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleTestWebhook(webhook)}
-                            className="rounded-full text-muted-foreground hover:text-primary"
-                          >
-                            Test
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleActive(webhook)}
-                            className="rounded-full text-muted-foreground hover:text-primary"
-                          >
-                            {webhook.active ? 'Disable' : 'Enable'}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteWebhook(webhook.id)}
-                            className="rounded-full text-muted-foreground hover:text-destructive"
-                          >
-                            Delete
-                          </Button>
-                        </div>
+                        {webhook.isDefault ? (
+                          <span className="text-xs text-muted-foreground">System</span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTestWebhook(webhook)}
+                              className="rounded-full text-muted-foreground hover:text-primary"
+                            >
+                              Test
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleActive(webhook)}
+                              className="rounded-full text-muted-foreground hover:text-primary"
+                            >
+                              {webhook.active ? 'Disable' : 'Enable'}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteWebhook(webhook.id)}
+                              className="rounded-full text-muted-foreground hover:text-destructive"
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

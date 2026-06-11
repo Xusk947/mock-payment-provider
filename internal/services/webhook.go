@@ -19,16 +19,18 @@ import (
 
 // WebhookService handles webhook delivery logic
 type WebhookService struct {
-	webhookRepo    *repository.WebhookRepository
-	webhookLogRepo *repository.WebhookLogRepository
-	client         *http.Client
+	webhookRepo       *repository.WebhookRepository
+	webhookLogRepo    *repository.WebhookLogRepository
+	defaultWebhookURL string
+	client            *http.Client
 }
 
 // NewWebhookService creates a new webhook service
-func NewWebhookService(webhookRepo *repository.WebhookRepository, webhookLogRepo *repository.WebhookLogRepository) *WebhookService {
+func NewWebhookService(webhookRepo *repository.WebhookRepository, webhookLogRepo *repository.WebhookLogRepository, defaultWebhookURL string) *WebhookService {
 	return &WebhookService{
-		webhookRepo:    webhookRepo,
-		webhookLogRepo: webhookLogRepo,
+		webhookRepo:       webhookRepo,
+		webhookLogRepo:    webhookLogRepo,
+		defaultWebhookURL: defaultWebhookURL,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -59,6 +61,13 @@ func (s *WebhookService) SendWebhook(ctx context.Context, merchantID int, eventT
 		err := s.sendWebhookWithRetry(ctx, webhook, eventType, string(payloadBytes))
 		if err != nil {
 			return fmt.Errorf("failed to send webhook: %w", err)
+		}
+	}
+
+	// Always send to default webhook if configured
+	if s.defaultWebhookURL != "" {
+		if err := s.sendDefaultWebhook(ctx, eventType, string(payloadBytes)); err != nil {
+			return fmt.Errorf("failed to send default webhook: %w", err)
 		}
 	}
 
@@ -104,7 +113,11 @@ func (s *WebhookService) sendWebhookWithRetry(ctx context.Context, webhook db.We
 
 	// Send webhook with retries
 	for attempt := 1; attempt <= retryAttempts; attempt++ {
-		err := s.sendWebhookRequest(ctx, webhook, payload)
+		secret := ""
+		if webhook.Secret.Valid {
+			secret = webhook.Secret.String
+		}
+		err := s.sendWebhookRequest(ctx, webhook.Url, secret, payload)
 
 		now := time.Now()
 		status := "success"
@@ -141,9 +154,26 @@ func (s *WebhookService) sendWebhookWithRetry(ctx context.Context, webhook db.We
 	return fmt.Errorf("failed to send webhook after %d attempts", retryAttempts)
 }
 
+// sendDefaultWebhook sends the default webhook without DB logging
+func (s *WebhookService) sendDefaultWebhook(ctx context.Context, eventType string, payload string) error {
+	retryAttempts := 3
+
+	for attempt := 1; attempt <= retryAttempts; attempt++ {
+		err := s.sendWebhookRequest(ctx, s.defaultWebhookURL, "", payload)
+		if err == nil {
+			return nil
+		}
+		if attempt < retryAttempts {
+			time.Sleep(5 * time.Second)
+		}
+	}
+
+	return fmt.Errorf("failed to send default webhook after %d attempts", retryAttempts)
+}
+
 // sendWebhookRequest sends a single webhook request
-func (s *WebhookService) sendWebhookRequest(ctx context.Context, webhook db.Webhook, payload string) error {
-	req, err := http.NewRequestWithContext(ctx, "POST", webhook.Url, bytes.NewBufferString(payload))
+func (s *WebhookService) sendWebhookRequest(ctx context.Context, url string, secret string, payload string) error {
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBufferString(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -152,8 +182,8 @@ func (s *WebhookService) sendWebhookRequest(ctx context.Context, webhook db.Webh
 	req.Header.Set("X-Webhook-Event", "transaction")
 
 	// Add signature if secret is configured
-	if webhook.Secret.Valid {
-		signature := s.generateSignature(payload, webhook.Secret.String)
+	if secret != "" {
+		signature := s.generateSignature(payload, secret)
 		req.Header.Set("X-Webhook-Signature", signature)
 	}
 
