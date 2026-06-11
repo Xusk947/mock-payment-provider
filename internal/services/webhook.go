@@ -8,14 +8,39 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/xusk947/mock-payment-provider/internal/repository"
 	db "github.com/xusk947/mock-payment-provider/sqlc"
 )
+
+// defaultRetryBackoff is the schedule of wait durations applied between webhook
+// delivery attempts. After an attempt fails the service waits the next interval
+// before retrying: 1m, 2m, 5m, 10m, 20m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 2d, 4d
+// and finally 1 week. Once the schedule is exhausted the final interval is
+// reused, so retries keep going up to roughly one week apart.
+var defaultRetryBackoff = []time.Duration{
+	1 * time.Minute,
+	2 * time.Minute,
+	5 * time.Minute,
+	10 * time.Minute,
+	20 * time.Minute,
+	30 * time.Minute,
+	1 * time.Hour,
+	2 * time.Hour,
+	4 * time.Hour,
+	8 * time.Hour,
+	12 * time.Hour,
+	24 * time.Hour,
+	48 * time.Hour,
+	96 * time.Hour,
+	7 * 24 * time.Hour,
+}
 
 // WebhookService handles webhook delivery logic
 type WebhookService struct {
@@ -23,6 +48,9 @@ type WebhookService struct {
 	webhookLogRepo    *repository.WebhookLogRepository
 	defaultWebhookURL string
 	client            *http.Client
+	// retryBackoff is the wait schedule between delivery attempts. It is a field
+	// so tests can shorten the intervals.
+	retryBackoff []time.Duration
 }
 
 // NewWebhookService creates a new webhook service
@@ -34,40 +62,101 @@ func NewWebhookService(webhookRepo *repository.WebhookRepository, webhookLogRepo
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		retryBackoff: defaultRetryBackoff,
 	}
 }
 
-// SendWebhook sends a webhook notification
-func (s *WebhookService) SendWebhook(ctx context.Context, merchantID int, eventType string, payload interface{}) error {
-	webhooks, err := s.webhookRepo.GetByMerchant(ctx, int64(merchantID))
-	if err != nil {
-		return fmt.Errorf("failed to get webhooks: %w", err)
+// backoffForAttempt returns how long to wait after the given (1-based) attempt
+// before making the next one. The last interval in the schedule is reused once
+// the schedule is exhausted.
+func (s *WebhookService) backoffForAttempt(attempt int) time.Duration {
+	schedule := s.retryBackoff
+	if len(schedule) == 0 {
+		return 0
 	}
+	idx := attempt - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(schedule) {
+		idx = len(schedule) - 1
+	}
+	return schedule[idx]
+}
 
+// waitBeforeRetry sleeps for the given duration but returns early if the context
+// is cancelled.
+func (s *WebhookService) waitBeforeRetry(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return ctx.Err()
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// SendWebhook sends a webhook notification.
+//
+// The default webhook (if configured) always receives every event, regardless
+// of whether the merchant has a matching subscription and regardless of whether
+// the merchant webhook deliveries succeed. Each delivery runs independently so a
+// slow or failing endpoint (which may retry for up to a week) never blocks the
+// others.
+func (s *WebhookService) SendWebhook(ctx context.Context, merchantID int, eventType string, payload interface{}) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal webhook payload: %w", err)
 	}
+	payloadStr := string(payloadBytes)
 
-	for _, webhook := range webhooks {
-		if !s.shouldSendEvent(webhook.EventTypes, eventType) {
-			continue
-		}
-
-		err := s.sendWebhookWithRetry(ctx, webhook, eventType, string(payloadBytes))
-		if err != nil {
-			return fmt.Errorf("failed to send webhook: %w", err)
-		}
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
+	addErr := func(err error) {
+		mu.Lock()
+		errs = append(errs, err)
+		mu.Unlock()
 	}
 
-	// Always send to default webhook if configured
+	// Always deliver every event to the default webhook if configured, even when
+	// no merchant webhook handles it.
 	if s.defaultWebhookURL != "" {
-		if err := s.sendDefaultWebhook(ctx, eventType, string(payloadBytes)); err != nil {
-			return fmt.Errorf("failed to send default webhook: %w", err)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.sendDefaultWebhook(ctx, eventType, payloadStr); err != nil {
+				addErr(fmt.Errorf("failed to send default webhook: %w", err))
+			}
+		}()
+	}
+
+	webhooks, err := s.webhookRepo.GetByMerchant(ctx, int64(merchantID))
+	if err != nil {
+		addErr(fmt.Errorf("failed to get webhooks: %w", err))
+	} else {
+		for _, webhook := range webhooks {
+			if !s.shouldSendEvent(webhook.EventTypes, eventType) {
+				continue
+			}
+			wg.Add(1)
+			go func(webhook db.Webhook) {
+				defer wg.Done()
+				if err := s.sendWebhookWithRetry(ctx, webhook, eventType, payloadStr); err != nil {
+					addErr(fmt.Errorf("failed to send webhook: %w", err))
+				}
+			}(webhook)
 		}
 	}
 
-	return nil
+	wg.Wait()
+	return errors.Join(errs...)
 }
 
 // shouldSendEvent checks if the webhook should be sent for this event type
@@ -107,7 +196,7 @@ func (s *WebhookService) sendWebhookWithRetry(ctx context.Context, webhook db.We
 		return fmt.Errorf("failed to create webhook log: %w", err)
 	}
 
-	// Send webhook with retries
+	// Send webhook with retries, backing off according to the retry schedule.
 	for attempt := 1; attempt <= retryAttempts; attempt++ {
 		secret := ""
 		if webhook.Secret.Valid {
@@ -143,16 +232,20 @@ func (s *WebhookService) sendWebhookWithRetry(ctx context.Context, webhook db.We
 
 		// Wait before retry
 		if attempt < retryAttempts {
-			time.Sleep(5 * time.Second)
+			if err := s.waitBeforeRetry(ctx, s.backoffForAttempt(attempt)); err != nil {
+				return fmt.Errorf("webhook retries interrupted after %d attempts: %w", attempt, err)
+			}
 		}
 	}
 
 	return fmt.Errorf("failed to send webhook after %d attempts", retryAttempts)
 }
 
-// sendDefaultWebhook sends the default webhook without DB logging
+// sendDefaultWebhook sends the default webhook without DB logging. It retries on
+// failure following the configured backoff schedule (1m, 2m, 5m ... up to 1
+// week) so that transient outages of the default endpoint are tolerated.
 func (s *WebhookService) sendDefaultWebhook(ctx context.Context, eventType string, payload string) error {
-	retryAttempts := 3
+	retryAttempts := len(s.retryBackoff) + 1
 
 	for attempt := 1; attempt <= retryAttempts; attempt++ {
 		err := s.sendWebhookRequest(ctx, s.defaultWebhookURL, "", payload)
@@ -160,7 +253,9 @@ func (s *WebhookService) sendDefaultWebhook(ctx context.Context, eventType strin
 			return nil
 		}
 		if attempt < retryAttempts {
-			time.Sleep(5 * time.Second)
+			if err := s.waitBeforeRetry(ctx, s.backoffForAttempt(attempt)); err != nil {
+				return fmt.Errorf("default webhook retries interrupted after %d attempts: %w", attempt, err)
+			}
 		}
 	}
 

@@ -132,11 +132,13 @@ func TestSendDefaultWebhookFailureAfterRetries(t *testing.T) {
 	defer server.Close()
 
 	svc := NewWebhookService(nil, nil, server.URL)
-	// Override client timeout to speed up retries
+	// Override client timeout and backoff to speed up retries
 	svc.client = &http.Client{Timeout: 1 * time.Second}
+	svc.retryBackoff = []time.Duration{time.Millisecond, time.Millisecond}
 
 	err := svc.sendDefaultWebhook(context.Background(), "charge.failed", `{}`)
 	assert.Error(t, err)
+	// attempts == len(retryBackoff) + 1
 	assert.Contains(t, err.Error(), "failed to send default webhook after 3 attempts")
 	assert.Equal(t, 3, callCount)
 }
@@ -194,7 +196,9 @@ func TestSendWebhookRequestNon2xxResponse(t *testing.T) {
 
 func TestSendDefaultWebhookEmptyDefaultURL(t *testing.T) {
 	svc := NewWebhookService(nil, nil, "")
-	// sendDefaultWebhook should fail immediately with empty URL
+	// Shorten the backoff so the (exhausted) retries don't actually wait.
+	svc.retryBackoff = []time.Duration{time.Millisecond}
+	// sendDefaultWebhook should fail with empty URL
 	err := svc.sendDefaultWebhook(context.Background(), "charge.completed", `{}`)
 	assert.Error(t, err)
 }
@@ -209,6 +213,73 @@ func TestNewWebhookServiceStoresDefaultWebhookURL(t *testing.T) {
 func TestNewWebhookServiceClientTimeout(t *testing.T) {
 	svc := NewWebhookService(nil, nil, "")
 	assert.Equal(t, 30*time.Second, svc.client.Timeout)
+}
+
+// ========== retry backoff schedule tests ==========
+
+func TestDefaultRetryBackoffSchedule(t *testing.T) {
+	svc := NewWebhookService(nil, nil, "")
+
+	// The schedule starts at 1 minute and grows up to exactly 1 week.
+	assert.Equal(t, 1*time.Minute, svc.retryBackoff[0])
+	assert.Equal(t, 2*time.Minute, svc.retryBackoff[1])
+	assert.Equal(t, 5*time.Minute, svc.retryBackoff[2])
+	assert.Equal(t, 10*time.Minute, svc.retryBackoff[3])
+	assert.Equal(t, 20*time.Minute, svc.retryBackoff[4])
+	assert.Equal(t, 30*time.Minute, svc.retryBackoff[5])
+	assert.Equal(t, 60*time.Minute, svc.retryBackoff[6])
+	assert.Equal(t, 120*time.Minute, svc.retryBackoff[7])
+	assert.Equal(t, 7*24*time.Hour, svc.retryBackoff[len(svc.retryBackoff)-1])
+
+	// Each interval is non-decreasing.
+	for i := 1; i < len(svc.retryBackoff); i++ {
+		assert.GreaterOrEqual(t, svc.retryBackoff[i], svc.retryBackoff[i-1])
+	}
+}
+
+func TestBackoffForAttemptCapsAtLastInterval(t *testing.T) {
+	svc := NewWebhookService(nil, nil, "")
+
+	assert.Equal(t, svc.retryBackoff[0], svc.backoffForAttempt(1))
+	assert.Equal(t, svc.retryBackoff[1], svc.backoffForAttempt(2))
+	// Attempts beyond the schedule reuse the final (1 week) interval.
+	last := svc.retryBackoff[len(svc.retryBackoff)-1]
+	assert.Equal(t, last, svc.backoffForAttempt(len(svc.retryBackoff)))
+	assert.Equal(t, last, svc.backoffForAttempt(len(svc.retryBackoff)+50))
+	// Defensive: non-positive attempt falls back to the first interval.
+	assert.Equal(t, svc.retryBackoff[0], svc.backoffForAttempt(0))
+}
+
+func TestSendDefaultWebhookUsesFullBackoffScheduleAttempts(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	svc := NewWebhookService(nil, nil, server.URL)
+	svc.client = &http.Client{Timeout: 1 * time.Second}
+	// Shorten intervals so the test runs fast while keeping the real count.
+	fast := make([]time.Duration, len(svc.retryBackoff))
+	for i := range fast {
+		fast[i] = time.Millisecond
+	}
+	svc.retryBackoff = fast
+
+	err := svc.sendDefaultWebhook(context.Background(), "charge.completed", `{}`)
+	assert.Error(t, err)
+	// initial attempt + one retry per backoff interval
+	assert.Equal(t, len(svc.retryBackoff)+1, callCount)
+}
+
+func TestWaitBeforeRetryRespectsContextCancellation(t *testing.T) {
+	svc := NewWebhookService(nil, nil, "")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := svc.waitBeforeRetry(ctx, time.Hour)
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 // ========== Event type boundary tests ==========
