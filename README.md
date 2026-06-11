@@ -37,7 +37,8 @@ A fully-featured mock payment provider API built with Go and React. It simulates
 
 - **Webhook Support**
   - Merchants can register webhook URLs for events: `charge.completed`, `charge.failed`, `hold.created`, `capture.completed`, `refund.completed`
-  - Automatic retries with configurable attempts and timeout
+  - Optional **default webhook** (`DEFAULT_WEBHOOK` env var) that automatically receives **every** event, regardless of merchant subscriptions and independently of whether merchant deliveries succeed
+  - Automatic retries on failure with an escalating backoff schedule: `1m → 2m → 5m → 10m → 20m → 30m → 1h → 2h → 4h → 8h → 12h → 1d → 2d → 4d → 1w`
   - Webhook delivery logs stored in the database
 
 - **Admin Dashboard**
